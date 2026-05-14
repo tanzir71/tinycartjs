@@ -6,9 +6,10 @@ Repository: https://github.com/tanzir71/tinycartjs
 
 ## Quick Start
 
-1. Upload `tinycart.js` and `checkout.php` to your site.
+1. Upload `tinycart.js`, `checkout.php`, and optional `collect.php` to your site.
 2. Configure `checkout.php`: set `ALLOWED_ORIGINS`, optional `API_KEYS`, `HMAC_SECRET`, and `PRODUCT_CATALOG`.
-3. Add product buttons and the script tag:
+3. Configure `collect.php` if you use analytics: set `COLLECT_ALLOWED_ORIGINS` and optional `COLLECT_API_KEYS`.
+4. Add product buttons and the script tag:
 
 ```html
 <button
@@ -34,7 +35,7 @@ TinyCart auto-initializes from `data-tc-config`, stores the cart in `localStorag
 - `data-tc-name`: required display name. Displayed with `textContent`, never as raw HTML.
 - `data-tc-price`: required decimal price, such as `24.00`. The server must re-check this.
 - `data-tc-qty`: optional default quantity, default `1`.
-- `data-tc-options`: optional JSON object, such as `{"size":"M"}`.
+- `data-tc-options`: optional JSON object, such as `{"size":"M"}`. TinyCart accepts simple string/number/boolean values only and drops nested objects.
 - `data-tc-stock`: optional client-side stock cap.
 - `data-tc-sig`: optional HMAC signature for signed product data.
 - `data-tc-exp`: optional Unix expiry timestamp paired with `data-tc-sig`.
@@ -47,8 +48,12 @@ tinycart.init({
   currency: "USD",
   apiCheckout: "/checkout.php",
   apiCoupon: "/coupon.php",
-  analyticsUrl: "/analytics.php",
+  analyticsUrl: "/collect.php",
+  apiKey: "optional-public-endpoint-key",
   accent: "#1A73E8",
+  allowedOptionKeys: ["size", "color", "finish"],
+  maxQueueItems: 20,
+  maxQueueBytes: 24576,
   coupons: { SAVE10: { type: "percent", value: 10 } },
   onCheckout: async (payload) => fetch("/checkout.php", {
     method: "POST",
@@ -70,6 +75,8 @@ JSON inside `data-tc-config` cannot include functions, so use `tinycart.init()` 
 - `tinycart.getCart()`: returns cart items, coupon, and totals.
 - `tinycart.clear()`: empties cart and coupon state.
 - `tinycart.applyCoupon(code)`: validates a coupon locally, through `apiCoupon`, or with `onValidateCoupon`.
+- `tinycart.flushQueue()`: retries queued analytics pings immediately.
+- `tinycart.safeTemplate(template, values)`: interpolates `{{placeholders}}` with escaped values and rejects template strings containing tags.
 - `tinycart.on(event, handler)`: subscribes and returns an unsubscribe function.
 
 Events:
@@ -80,6 +87,12 @@ Events:
 - `cart:applyCoupon`
 
 TinyCart also dispatches DOM events named `tinycart:cart:updated`, etc.
+
+## Analytics / Collect Endpoint
+
+Set `analyticsUrl` to `/collect.php` to receive lightweight events. TinyCart uses `navigator.sendBeacon` when no API key is configured. If `apiKey` is configured, TinyCart uses `fetch(..., { keepalive: true })` so it can send `X-API-KEY`.
+
+Failed analytics sends are queued in `localStorage` under the cart key with size, count, retention, and exponential-backoff limits. The queue is for operational events only; do not put secrets or unnecessary PII into analytics payloads.
 
 ## Sample Product Buttons
 

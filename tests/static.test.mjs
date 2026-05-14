@@ -5,7 +5,7 @@ import { join } from "node:path";
 const root = process.cwd();
 const read = (file) => readFileSync(join(root, file), "utf8");
 
-for (const file of ["tinycart.js", "checkout.php", "README.md", "SETUP.md", "SECURITY.md", "index.html", "sample.html"]) {
+for (const file of ["tinycart.js", "checkout.php", "collect.php", "README.md", "SETUP.md", "SECURITY.md", "index.html", "sample.html"]) {
   assert.ok(existsSync(join(root, file)), `${file} should exist`);
 }
 
@@ -21,6 +21,12 @@ for (const token of [
   "htmlEscape",
   "navigator.sendBeacon",
   "keepalive",
+  "apiKey",
+  "X-API-KEY",
+  "queuePing",
+  "flushQueue",
+  "sanitizeOptions",
+  "safeTemplate",
   "cart:updated",
   "cart:opened",
   "cart:checkedout",
@@ -32,7 +38,9 @@ for (const token of [
   assert.ok(js.includes(token), `tinycart.js should include ${token}`);
 }
 
-assert.ok(!js.includes("innerHTML = item"), "tinycart.js should avoid direct item HTML injection");
+for (const forbidden of ["innerHTML", "insertAdjacentHTML", "eval(", "new Function"]) {
+  assert.ok(!js.includes(forbidden), `tinycart.js should not contain ${forbidden}`);
+}
 assert.ok(js.length < 40_000, "tinycart.js should stay compact enough for the MVP");
 
 const php = read("checkout.php");
@@ -50,6 +58,23 @@ for (const token of [
 ]) {
   assert.ok(php.includes(token), `checkout.php should include ${token}`);
 }
+assert.ok(!php.includes("Access-Control-Allow-Origin: *"), "checkout.php should not allow wildcard CORS");
+
+const collect = read("collect.php");
+for (const token of [
+  "COLLECT_ALLOWED_ORIGINS",
+  "COLLECT_API_KEYS",
+  "collect_events",
+  "failed_payloads",
+  "prepare(",
+  "rateLimit",
+  "Access-Control-Allow-Origin: ",
+  "MAX_PAYLOAD_BYTES",
+  "hash_equals"
+]) {
+  assert.ok(collect.includes(token), `collect.php should include ${token}`);
+}
+assert.ok(!collect.includes("Access-Control-Allow-Origin: *"), "collect.php should not allow wildcard CORS");
 
 const readme = read("README.md");
 assert.ok(readme.includes("https://github.com/tanzir71/tinycartjs"), "README should use the chosen GitHub repo URL");

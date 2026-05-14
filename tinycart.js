@@ -17,10 +17,16 @@
     apiCheckout: "/checkout.php",
     apiCoupon: null,
     analyticsUrl: null,
+    apiKey: null,
     accent: "#111111",
     coupons: {},
+    allowedOptionKeys: null,
     maxItems: 100,
     maxStorageBytes: 50 * 1024,
+    maxQueueItems: 20,
+    maxQueueBytes: 24 * 1024,
+    queueRetentionMs: 24 * 60 * 60 * 1000,
+    retryBaseMs: 1500,
     onCheckout: null,
     onValidateCoupon: null
   };
@@ -43,11 +49,13 @@
     form: null,
     couponInput: null,
     couponStatus: null,
-    lastFocused: null
+    lastFocused: null,
+    retryTimer: 0
   };
 
   const selectors = "[data-tc-id][data-tc-name][data-tc-price]";
   const storageKey = () => `tinycart:${state.config.cartKey || "default"}`;
+  const queueKey = () => `tinycart:${state.config.cartKey || "default"}:queue`;
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
   const now = () => Date.now();
 
@@ -63,6 +71,14 @@
 
   function setText(node, value) {
     node.textContent = String(value == null ? "" : value);
+  }
+
+  function safeTemplate(template, values = {}, allowTags = false) {
+    const source = String(template == null ? "" : template);
+    if (!allowTags && /<[^>]*>/g.test(source)) {
+      throw new Error("TinyCart template strings cannot contain tags.");
+    }
+    return source.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_, key) => htmlEscape(values[key]));
   }
 
   function safeString(value, max = 180) {
@@ -180,6 +196,32 @@
     }
   }
 
+  function loadQueue() {
+    try {
+      const raw = win.localStorage.getItem(queueKey());
+      if (!raw || raw.length > state.config.maxQueueBytes) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const cutoff = now() - state.config.queueRetentionMs;
+      return parsed
+        .filter((entry) => entry && entry.createdAt > cutoff)
+        .slice(0, state.config.maxQueueItems);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveQueue(queue) {
+    const compact = queue.slice(-state.config.maxQueueItems);
+    const payload = JSON.stringify(compact);
+    if (payload.length > state.config.maxQueueBytes) {
+      compact.splice(0, Math.ceil(compact.length / 2));
+    }
+    try {
+      win.localStorage.setItem(queueKey(), JSON.stringify(compact));
+    } catch (_) {}
+  }
+
   function normalizeCoupon(coupon) {
     if (!coupon || typeof coupon !== "object") return null;
     const code = safeString(coupon.code, 40).toUpperCase();
@@ -198,7 +240,7 @@
     const stock = input.stock === "" || input.stock == null ? null : Math.max(0, Number.parseInt(input.stock, 10));
     const qty = clamp(Number.parseInt(input.qty || 1, 10) || 1, 1, stock || 999);
     if (!id || !name || !Number.isFinite(cents) || cents < 0) return null;
-    const options = input.options && typeof input.options === "object" ? JSON.parse(JSON.stringify(input.options)) : {};
+    const options = sanitizeOptions(input.options);
     const sig = safeString(input.sig || input.signature || "", 512);
     const exp = safeString(input.exp || input.expires || "", 40);
     return {
@@ -212,6 +254,23 @@
       sig,
       exp
     };
+  }
+
+  function sanitizeOptions(input) {
+    if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+    const allowed = Array.isArray(state.config.allowedOptionKeys)
+      ? new Set(state.config.allowedOptionKeys.map((key) => safeString(key, 40)))
+      : null;
+    const clean = {};
+    Object.keys(input).slice(0, 20).forEach((key) => {
+      const safeKey = safeString(key, 40);
+      if (!safeKey || safeKey.startsWith("__") || (allowed && !allowed.has(safeKey))) return;
+      const value = input[key];
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        clean[safeKey] = safeString(value, 120);
+      }
+    });
+    return clean;
   }
 
   function totals() {
@@ -324,7 +383,7 @@
     if (!raw) return {};
     try {
       const parsed = JSON.parse(raw);
-      return parsed && typeof parsed === "object" ? parsed : {};
+      return sanitizeOptions(parsed);
     } catch (_) {
       toast("Product options are invalid JSON.");
       return {};
@@ -600,7 +659,17 @@
 
   function optionsLabel(options) {
     if (!options || typeof options !== "object") return "";
-    return Object.keys(options).sort().map((key) => `${key}: ${String(options[key])}`).join(", ");
+    return Object.keys(options).sort().map((key) => safeTemplate("{{key}}: {{value}}", {
+      key,
+      value: options[key]
+    })).join(", ");
+  }
+
+  function requestHeaders(headers = {}) {
+    const safeHeaders = { ...headers };
+    const apiKey = safeString(state.config.apiKey || "", 300);
+    if (apiKey) safeHeaders["X-API-KEY"] = apiKey;
+    return safeHeaders;
   }
 
   async function applyCoupon(rawCode) {
@@ -621,7 +690,7 @@
       } else if (state.config.apiCoupon) {
         const response = await win.fetch(state.config.apiCoupon, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: requestHeaders({ "Content-Type": "application/json" }),
           credentials: "same-origin",
           body: JSON.stringify({ code, cart: getCart() })
         });
@@ -696,7 +765,7 @@
       } else {
         const response = await win.fetch(state.config.apiCheckout, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: requestHeaders({ "Content-Type": "application/json" }),
           credentials: "same-origin",
           body: JSON.stringify(payload)
         });
@@ -771,28 +840,79 @@
 
   function ping(type, payload = {}) {
     if (!state.config.analyticsUrl) return;
-    const body = JSON.stringify({
+    const event = {
       type,
       cartKey: state.config.cartKey,
       currency: state.config.currency,
       payload,
       ts: new Date().toISOString()
+    };
+    sendPing(event, true).then((ok) => {
+      if (!ok) queuePing(event);
     });
+  }
+
+  function sendPing(event, preferBeacon) {
+    const body = JSON.stringify(event);
     try {
-      if (navigator.sendBeacon) {
+      if (preferBeacon && !state.config.apiKey && navigator.sendBeacon) {
         const blob = new Blob([body], { type: "application/json" });
-        if (navigator.sendBeacon(state.config.analyticsUrl, blob)) return;
+        if (navigator.sendBeacon(state.config.analyticsUrl, blob)) return Promise.resolve(true);
       }
     } catch (_) {}
     try {
-      win.fetch(state.config.analyticsUrl, {
+      return win.fetch(state.config.analyticsUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: requestHeaders({ "Content-Type": "application/json" }),
         body,
         keepalive: true,
         credentials: "same-origin"
-      }).catch(() => {});
-    } catch (_) {}
+      }).then((response) => response.ok).catch(() => false);
+    } catch (_) {
+      return Promise.resolve(false);
+    }
+  }
+
+  function queuePing(event) {
+    const queue = loadQueue();
+    queue.push({
+      event,
+      tries: 0,
+      createdAt: now(),
+      nextAt: now() + state.config.retryBaseMs
+    });
+    saveQueue(queue);
+    scheduleFlushQueue();
+  }
+
+  function scheduleFlushQueue() {
+    win.clearTimeout(state.retryTimer);
+    const queue = loadQueue();
+    if (!queue.length) return;
+    const dueIn = Math.max(250, Math.min(...queue.map((entry) => entry.nextAt || now())) - now());
+    state.retryTimer = win.setTimeout(flushQueue, dueIn);
+  }
+
+  function flushQueue() {
+    if (!state.config.analyticsUrl) return;
+    const queue = loadQueue();
+    const index = queue.findIndex((entry) => !entry.nextAt || entry.nextAt <= now());
+    if (index === -1) {
+      scheduleFlushQueue();
+      return;
+    }
+    const entry = queue[index];
+    sendPing(entry.event, false).then((ok) => {
+      const latest = loadQueue();
+      if (ok) {
+        latest.splice(index, 1);
+      } else if (latest[index]) {
+        latest[index].tries = (latest[index].tries || 0) + 1;
+        latest[index].nextAt = now() + Math.min(60 * 1000, state.config.retryBaseMs * (2 ** latest[index].tries));
+      }
+      saveQueue(latest);
+      scheduleFlushQueue();
+    });
   }
 
   function bindProductListeners() {
@@ -820,14 +940,20 @@
     state.config.cartKey = safeString(state.config.cartKey || "default", 80);
     state.config.currency = safeString(state.config.currency || "USD", 8).toUpperCase();
     state.config.accent = /^#[0-9a-f]{3,8}$/i.test(state.config.accent) ? state.config.accent : "#111111";
+    state.config.apiKey = safeString(state.config.apiKey || "", 300);
     state.config.maxItems = clamp(Number.parseInt(state.config.maxItems, 10) || DEFAULTS.maxItems, 1, 250);
     state.config.maxStorageBytes = clamp(Number.parseInt(state.config.maxStorageBytes, 10) || DEFAULTS.maxStorageBytes, 4096, 200 * 1024);
+    state.config.maxQueueItems = clamp(Number.parseInt(state.config.maxQueueItems, 10) || DEFAULTS.maxQueueItems, 1, 50);
+    state.config.maxQueueBytes = clamp(Number.parseInt(state.config.maxQueueBytes, 10) || DEFAULTS.maxQueueBytes, 2048, 80 * 1024);
+    state.config.queueRetentionMs = clamp(Number.parseInt(state.config.queueRetentionMs, 10) || DEFAULTS.queueRetentionMs, 60 * 1000, 7 * 24 * 60 * 60 * 1000);
+    state.config.retryBaseMs = clamp(Number.parseInt(state.config.retryBaseMs, 10) || DEFAULTS.retryBaseMs, 500, 30 * 1000);
 
     loadCart();
     if (doc.body) {
       buildUI();
       bindProductListeners();
       render();
+      scheduleFlushQueue();
       state.initialized = true;
     } else {
       doc.addEventListener("DOMContentLoaded", () => init(config), { once: true });
@@ -844,6 +970,8 @@
     clear,
     applyCoupon,
     htmlEscape,
+    safeTemplate,
+    flushQueue,
     on(eventName, handler) {
       if (typeof handler !== "function") return () => {};
       state.handlers[eventName] = state.handlers[eventName] || [];
@@ -860,6 +988,7 @@
     const cart = getCart();
     if (cart.totals.count > 0) ping("cart_snapshot", { count: cart.totals.count, total: cart.totals.totalCents });
   });
+  win.addEventListener("online", flushQueue);
 
   const boot = () => init();
   if (doc.readyState === "loading") {
