@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TinyCart - Embeddable Storefront Script</title>
+  <meta name="description" content="TinyCart turns any website into a small storefront with one script include.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #ffffff;
+      --fg: #070707;
+      --muted: #666666;
+      --line: #e8e8e8;
+      --soft: #f7f7f7;
+      --accent: #1A73E8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+    .wrap { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
+    header {
+      min-height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { font-weight: 800; font-size: 20px; }
+    nav { display: flex; gap: 18px; align-items: center; font-size: 14px; font-weight: 700; }
+    .hero {
+      min-height: calc(100dvh - 68px);
+      display: grid;
+      align-items: center;
+      padding: 56px 0 44px;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(280px, .95fr);
+      gap: 48px;
+      align-items: center;
+    }
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(44px, 8vw, 94px);
+      line-height: .92;
+      letter-spacing: 0;
+    }
+    .lead {
+      max-width: 620px;
+      margin: 26px 0 0;
+      color: var(--muted);
+      font-size: clamp(17px, 2.2vw, 22px);
+      line-height: 1.45;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 18px;
+      border: 1px solid #111;
+      border-radius: 999px;
+      background: #111;
+      color: #fff;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .btn.secondary { background: #fff; color: #111; }
+    .mockup {
+      width: 100%;
+      min-height: 430px;
+      display: grid;
+      place-items: center;
+      background: var(--soft);
+      border: 1px solid var(--line);
+    }
+    .code-strip {
+      margin-top: 38px;
+      padding: 16px;
+      background: #0b0b0b;
+      color: #fff;
+      overflow: auto;
+      font: 600 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+    section { padding: 72px 0; border-top: 1px solid var(--line); }
+    h2 { margin: 0 0 18px; font-size: clamp(30px, 4vw, 48px); line-height: 1; letter-spacing: 0; }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+    }
+    .step { background: #fff; padding: 24px; min-height: 170px; }
+    .step strong { display: block; font-size: 18px; margin-bottom: 10px; }
+    .step p { margin: 0; color: var(--muted); line-height: 1.5; }
+    footer { padding: 30px 0; color: var(--muted); font-size: 14px; }
+    @media (max-width: 820px) {
+      header { align-items: flex-start; flex-direction: column; gap: 14px; padding: 18px 0; }
+      .hero { min-height: auto; padding-top: 42px; }
+      .hero-grid, .flow { grid-template-columns: 1fr; }
+      .mockup { min-height: 340px; }
+      nav { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <div class="brand">TinyCart</div>
+    <nav aria-label="Primary">
+      <a href="README.md">Docs</a>
+      <a href="SECURITY.md">Security</a>
+      <a href="https://github.com/tanzir71/tinycartjs">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero wrap">
+      <div class="hero-grid">
+        <div>
+          <h1>TinyCart</h1>
+          <p class="lead">Turn any website into a storefront with one script include, product data attributes, and a PHP checkout endpoint that verifies prices before storing orders.</p>
+          <div class="actions">
+            <a class="btn" href="README.md">Read the docs</a>
+            <a class="btn secondary" href="https://github.com/tanzir71/tinycartjs">View GitHub</a>
+          </div>
+          <pre class="code-strip"><code>&lt;script src="tinycart.js" data-tc-config='{"cartKey":"store-1","currency":"USD","apiCheckout":"/checkout.php"}'&gt;&lt;/script&gt;</code></pre>
+        </div>
+
+        <div class="mockup" aria-label="TinyCart cart UI mockup">
+          <svg width="310" height="330" viewBox="0 0 310 330" role="img" aria-labelledby="mock-title" xmlns="http://www.w3.org/2000/svg">
+            <title id="mock-title">Floating cart and checkout modal mockup</title>
+            <rect x="22" y="16" width="230" height="292" rx="18" fill="#fff" stroke="#111" stroke-width="2"/>
+            <rect x="42" y="42" width="120" height="12" rx="6" fill="#111"/>
+            <circle cx="218" cy="48" r="14" fill="#fff" stroke="#111" stroke-width="2"/>
+            <path d="M213 43l10 10M223 43l-10 10" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+            <line x1="22" y1="76" x2="252" y2="76" stroke="#E8E8E8" stroke-width="2"/>
+            <rect x="42" y="100" width="92" height="12" rx="6" fill="#111"/>
+            <rect x="42" y="122" width="136" height="8" rx="4" fill="#777"/>
+            <rect x="184" y="102" width="42" height="12" rx="6" fill="#111"/>
+            <rect x="42" y="158" width="78" height="12" rx="6" fill="#111"/>
+            <rect x="42" y="180" width="116" height="8" rx="4" fill="#777"/>
+            <rect x="184" y="160" width="42" height="12" rx="6" fill="#111"/>
+            <line x1="42" y1="220" x2="232" y2="220" stroke="#E8E8E8" stroke-width="2"/>
+            <rect x="42" y="242" width="190" height="42" rx="21" fill="#111"/>
+            <rect x="77" y="257" width="120" height="11" rx="5.5" fill="#fff"/>
+            <rect x="172" y="254" width="116" height="54" rx="27" fill="#111"/>
+            <circle cx="260" cy="281" r="15" fill="#fff"/>
+            <text x="260" y="286" text-anchor="middle" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#111">3</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>Embed, sell, verify.</h2>
+        <div class="flow">
+          <div class="step"><strong>1. Mark products</strong><p>Add `data-tc-id`, name, price, quantity, options, stock, and optional HMAC signature to existing buttons.</p></div>
+          <div class="step"><strong>2. Cart opens anywhere</strong><p>The script renders a mobile-first floating cart, editable quantities, coupon entry, and checkout form.</p></div>
+          <div class="step"><strong>3. Server decides</strong><p>The PHP endpoint checks origin, rate limits, re-prices every item, stores the order, and can hand off to Stripe or PayPal.</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <span>Privacy-friendly storefront plumbing for static sites and shared hosting.</span>
+  </footer>
+</body>
+</html>
