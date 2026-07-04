@@ -119,7 +119,7 @@ echo json_encode(['sql' => $pdo->sql, 'params' => $pdo->statement->params], JSON
 function runPaymentSnippet(snippet, payload = "{}", replacements = []) {
   const fixture = mkdtempSync(join(tmpdir(), "tinycart-payment-lib-"));
   try {
-    let source = readFileSync(join(root, "payment.php"), "utf8").replace(/\npaymentMain\(\);\n/, "\n");
+    let source = readFileSync(join(root, "payment.php"), "utf8").replace(/\r?\npaymentMain\(\);\r?\n/, "\n");
     for (const [from, to] of replacements) {
       source = source.replace(from, to);
     }

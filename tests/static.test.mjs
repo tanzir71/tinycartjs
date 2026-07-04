@@ -30,7 +30,7 @@ for (const file of [
   assert.ok(existsSync(join(root, file)), `${file} should exist`);
 }
 
-const js = read("tinycart.js");
+const js = read("tinycart.js").replace(/\r\n/g, "\n");
 for (const token of [
   "win.tinycart = api",
   "init,",

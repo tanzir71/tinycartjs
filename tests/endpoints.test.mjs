@@ -548,7 +548,7 @@ echo json_encode($order, JSON_UNESCAPED_SLASHES);
 function runCheckoutSnippet(snippet, payload, replacements = []) {
   const fixture = mkdtempSync(join(tmpdir(), "tinycart-checkout-lib-"));
   try {
-    let source = readFileSync(join(root, "checkout.php"), "utf8").replace(/\nmain\(\);\n/, "\n");
+    let source = readFileSync(join(root, "checkout.php"), "utf8").replace(/\r?\nmain\(\);\r?\n/, "\n");
     for (const [from, to] of replacements) {
       source = source.replace(from, to);
     }
@@ -574,7 +574,7 @@ ${snippet}
 function runAdminSnippet(snippet, replacements = []) {
   const fixture = mkdtempSync(join(tmpdir(), "tinycart-admin-lib-"));
   try {
-    let source = readFileSync(join(root, "admin.php"), "utf8").replace(/\nmain\(\);\n/, "\n");
+    let source = readFileSync(join(root, "admin.php"), "utf8").replace(/\r?\nmain\(\);\r?\n/, "\n");
     for (const [from, to] of replacements) {
       source = source.replace(from, to);
     }
