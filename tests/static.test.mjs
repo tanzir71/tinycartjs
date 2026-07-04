@@ -54,7 +54,6 @@ for (const token of [
   "hydrateCatalog",
   "--tc-radius",
   "--tc-font",
-  "prefers-color-scheme:dark",
   "sanitizeOptions",
   "safeTemplate",
   "cart:updated",
@@ -222,6 +221,16 @@ assert.ok(ci.includes("44000"), "CI should preserve the documented byte-size cei
 const index = read("index.html");
 assert.ok(index.includes("https://github.com/tanzir71/tinycartjs"), "landing should link to GitHub repo");
 assert.ok(index.includes("README.md") && index.includes("SECURITY.md"), "landing should link docs and security");
+assert.ok(index.includes("max-width: 760px"), "landing should use a compact hero measure");
+assert.ok(index.includes("clamp(40px, 6.4vw, 72px)"), "landing headline should avoid oversized display text");
+assert.ok(index.includes("clamp(44px, 7vw, 76px)"), "landing sections should keep tighter vertical rhythm");
+assert.ok(index.includes("scrollbar-color: var(--fg) var(--soft)"), "landing scrollbar should match the site design");
+
+assert.ok(js.includes("--tc-bg:#fff"), "cart widget should default to light mode");
+assert.ok(js.includes(".tc-dialog{position:fixed;inset:auto 12px 12px 12px"), "cart modal should use compact mobile spacing");
+assert.ok(js.includes(".tc-body{overflow:auto;scrollbar-color:var(--tc-fg,#111) var(--tc-soft,#f7f7f7);"), "cart modal should style its scrollbar");
+assert.ok(js.includes(".tc-form{display:grid;gap:8px;margin-top:8px;padding-top:10px"), "checkout form spacing should stay compact");
+assert.ok(!js.includes("prefers-color-scheme:dark"), "cart widget should not force a dark theme by media query");
 
 console.log("Static TinyCart checks passed.");
 
