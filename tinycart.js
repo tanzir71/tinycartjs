@@ -1,24 +1,16 @@
-/*!
- * TinyCart MVP
- * Dependency-free embeddable storefront cart.
- *
- * Embed:
- * <script src="tinycart.js" data-tc-config='{"cartKey":"store-1","currency":"USD","apiCheckout":"/checkout.php","accent":"#1A73E8"}'></script>
- *
- * Developer API: tinycart.init, tinycart.add, tinycart.remove, tinycart.update,
- * tinycart.getCart, tinycart.clear, tinycart.on
- */
 (function (win, doc) {
   "use strict";
 
   const DEFAULTS = {
     cartKey: "default",
     currency: "USD",
+    locale: null,
     apiCheckout: "/checkout.php",
     apiCoupon: null,
+    catalogUrl: null,
     analyticsUrl: null,
     apiKey: null,
-    accent: "#111111",
+    accent: null,
     coupons: {},
     allowedOptionKeys: null,
     maxItems: 100,
@@ -27,13 +19,59 @@
     maxQueueBytes: 24 * 1024,
     queueRetentionMs: 24 * 60 * 60 * 1000,
     retryBaseMs: 1500,
+    strings: {},
     onCheckout: null,
     onValidateCoupon: null
+  };
+
+  const STRINGS = {
+    cart: "Cart",
+    openCart: "Open cart",
+    title: "Your cart",
+    closeCart: "Close cart",
+    coupon: "Coupon code",
+    apply: "Apply",
+    name: "Name",
+    phone: "Phone",
+    email: "Email",
+    address: "Address",
+    subtotal: "Subtotal",
+    discount: "Discount",
+    total: "Total",
+    checkout: "Checkout",
+    processing: "Processing...",
+    empty: "Your cart is empty.",
+    remove: "Remove",
+    itemAdded: "{{name}} added",
+    cartTooLarge: "Cart is too large. Remove an item before adding more.",
+    saveFailed: "Cart could not be saved in this browser.",
+    badProduct: "This product cannot be added.",
+    itemLimit: "Cart item limit reached.",
+    badOptions: "Product options are invalid JSON.",
+    couponRemoved: "Coupon removed.",
+    checkingCoupon: "Checking coupon...",
+    couponInvalid: "Coupon not valid.",
+    couponFailed: "Coupon validation failed.",
+    couponApplied: "{{code}} applied.",
+    addItem: "Add an item before checkout.",
+    required: "Please complete required fields.",
+    orderReceived: "Order received.",
+    network: "Network error. Check your connection and try again.",
+    checkout400: "Validation failed. Check your cart and checkout details.",
+    checkout403: "Checkout is not allowed from this page.",
+    outOfStock: "Some items are out of stock.",
+    checkout429: "Too many checkout attempts. Please wait and try again.",
+    checkoutFailed: "Checkout failed. Try again.",
+    decQty: "Decrease {{name}} quantity",
+    incQty: "Increase {{name}} quantity",
+    qtyFor: "Quantity for {{name}}",
+    option: "{{key}}: {{value}}"
   };
 
   const state = {
     config: { ...DEFAULTS },
     items: [],
+    catalog: {},
     coupon: null,
     handlers: {},
     initialized: false,
@@ -50,12 +88,14 @@
     couponInput: null,
     couponStatus: null,
     lastFocused: null,
+    checkoutPending: false,
     retryTimer: 0
   };
 
-  const selectors = "[data-tc-id][data-tc-name][data-tc-price]";
+  const selectors = "[data-tc-id]";
   const storageKey = () => `tinycart:${state.config.cartKey || "default"}`;
   const queueKey = () => `tinycart:${state.config.cartKey || "default"}:queue`;
+  const CART_VERSION = 2;
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
   const now = () => Date.now();
 
@@ -79,6 +119,11 @@
       throw new Error("TinyCart template strings cannot contain tags.");
     }
     return source.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_, key) => htmlEscape(values[key]));
+  }
+
+  function text(key, values) {
+    const value = state.config.strings && state.config.strings[key] != null ? state.config.strings[key] : STRINGS[key];
+    return safeTemplate(value == null ? "" : value, values || {});
   }
 
   function safeString(value, max = 180) {
@@ -106,13 +151,23 @@
 
   function money(cents) {
     try {
-      return new Intl.NumberFormat(undefined, {
+      return new Intl.NumberFormat(state.config.locale || undefined, {
         style: "currency",
         currency: state.config.currency || "USD"
       }).format(centsToDecimal(cents));
     } catch (_) {
       return `${state.config.currency || "USD"} ${centsToDecimal(cents).toFixed(2)}`;
     }
+  }
+
+  function readableAccent(color) {
+    const raw = color.replace("#", "");
+    const hex = raw.length === 3 ? raw.replace(/./g, "$&$&") : raw.slice(0, 6);
+    if (!/^[0-9a-f]{6}$/i.test(hex)) return "#111111";
+    const lum = [0, 2, 4].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map((c) => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+      .reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
+    return 1.05 / (lum + 0.05) >= 4.5 ? color : "#111111";
   }
 
   function stableStringify(value) {
@@ -168,6 +223,11 @@
       if (!raw || raw.length > state.config.maxStorageBytes) return;
       const saved = JSON.parse(raw);
       if (!saved || !Array.isArray(saved.items)) return;
+      const version = saved.version == null ? 1 : Number(saved.version);
+      if (!Number.isFinite(version) || version > CART_VERSION || version < 1) {
+        win.localStorage.removeItem(storageKey());
+        return;
+      }
       state.items = saved.items.map(normalizeItem).filter(Boolean).slice(0, state.config.maxItems);
       state.coupon = normalizeCoupon(saved.coupon);
     } catch (_) {
@@ -178,20 +238,20 @@
 
   function saveCart() {
     const payload = JSON.stringify({
-      version: 1,
+      version: CART_VERSION,
       updatedAt: new Date().toISOString(),
       coupon: state.coupon,
       items: state.items.slice(0, state.config.maxItems)
     });
     if (payload.length > state.config.maxStorageBytes) {
-      toast("Cart is too large. Remove an item before adding more.");
+      toast(text("cartTooLarge"));
       return false;
     }
     try {
       win.localStorage.setItem(storageKey(), payload);
       return true;
     } catch (_) {
-      toast("Cart could not be saved in this browser.");
+      toast(text("saveFailed"));
       return false;
     }
   }
@@ -297,7 +357,7 @@
   function add(input) {
     const item = normalizeItem(input);
     if (!item) {
-      toast("This product cannot be added.");
+      toast(text("badProduct"));
       return false;
     }
     const existing = state.items.find((candidate) => candidate.key === item.key);
@@ -305,13 +365,13 @@
       existing.qty = clamp(existing.qty + item.qty, 1, existing.stock || 999);
     } else {
       if (state.items.length >= state.config.maxItems) {
-        toast("Cart item limit reached.");
+        toast(text("itemLimit"));
         return false;
       }
       state.items.push(item);
     }
     changed();
-    toast(`${item.name} added`);
+    toast(text("itemAdded", { name: item.name }));
     pulseCart();
     return true;
   }
@@ -385,19 +445,22 @@
       const parsed = JSON.parse(raw);
       return sanitizeOptions(parsed);
     } catch (_) {
-      toast("Product options are invalid JSON.");
+      toast(text("badOptions"));
       return {};
     }
   }
 
   function itemFromElement(el) {
+    const id = el.getAttribute("data-tc-id");
+    const product = state.catalog[id];
     return {
-      id: el.getAttribute("data-tc-id"),
-      name: el.getAttribute("data-tc-name"),
-      price: el.getAttribute("data-tc-price"),
+      id,
+      name: product ? product.name : el.getAttribute("data-tc-name"),
+      price: product ? undefined : el.getAttribute("data-tc-price"),
+      priceCents: product ? product.price_cents : undefined,
       qty: el.getAttribute("data-tc-qty") || 1,
       options: parseOptions(el.getAttribute("data-tc-options")),
-      stock: el.getAttribute("data-tc-stock"),
+      stock: product ? product.stock : el.getAttribute("data-tc-stock"),
       sig: el.getAttribute("data-tc-sig"),
       exp: el.getAttribute("data-tc-exp")
     };
@@ -406,6 +469,7 @@
   function onProductClick(event) {
     const trigger = event.target.closest ? event.target.closest(selectors) : null;
     if (!trigger) return;
+    if (trigger.disabled || trigger.getAttribute("aria-disabled") === "true") return;
     add(itemFromElement(trigger));
   }
 
@@ -413,6 +477,7 @@
     if (event.key !== "Enter" && event.key !== " ") return;
     const trigger = event.target.closest ? event.target.closest(selectors) : null;
     if (!trigger) return;
+    if (trigger.disabled || trigger.getAttribute("aria-disabled") === "true") return;
     event.preventDefault();
     add(itemFromElement(trigger));
   }
@@ -429,49 +494,51 @@
     const style = create("style");
     style.id = "tinycart-style";
     style.textContent = `
-.tc-root{--tc-accent:#111;--tc-bg:#fff;--tc-fg:#080808;--tc-muted:#666;--tc-line:#e7e7e7;--tc-soft:#f7f7f7;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--tc-fg)}
+.tc-root{font-family:var(--tc-font,Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif);color:var(--tc-fg,#080808)}
 .tc-root *{box-sizing:border-box}
-.tc-float{position:fixed;right:16px;bottom:16px;z-index:2147483000;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 18px;border:1px solid #111;border-radius:999px;background:#111;color:#fff;box-shadow:0 16px 40px rgba(0,0,0,.18);font:700 15px/1 Inter,system-ui,sans-serif;cursor:pointer;touch-action:manipulation;transition:transform .18s ease,background .18s ease}
-.tc-float:hover,.tc-float:focus-visible{background:var(--tc-accent);outline:2px solid transparent;transform:translateY(-1px)}
+.tc-float{position:fixed;right:16px;bottom:16px;z-index:2147483000;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 18px;border:1px solid var(--tc-accent,#111);border-radius:999px;background:var(--tc-accent,#111);color:#fff;box-shadow:0 16px 40px rgba(0,0,0,.18);font:700 15px/1 var(--tc-font,Inter,system-ui,sans-serif);cursor:pointer;touch-action:manipulation;transition:transform .18s ease,background .18s ease}
+.tc-float:hover,.tc-float:focus-visible{background:var(--tc-accent,#111);outline:2px solid transparent;transform:translateY(-1px)}
 .tc-float.tc-pulse{animation:tc-pop .28s ease}
 .tc-count{display:grid;place-items:center;min-width:24px;height:24px;padding:0 6px;border-radius:999px;background:#fff;color:#111;font-size:12px}
 .tc-backdrop{position:fixed;inset:0;z-index:2147483001;display:none;background:rgba(0,0,0,.42);padding:0}
 .tc-backdrop[aria-hidden=false]{display:block}
-.tc-dialog{position:absolute;inset:auto 0 0 0;max-height:92dvh;display:flex;flex-direction:column;background:#fff;border-radius:18px 18px 0 0;box-shadow:0 -24px 80px rgba(0,0,0,.24);overflow:hidden}
-.tc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 18px 12px;border-bottom:1px solid var(--tc-line)}
+.tc-dialog{position:absolute;inset:auto 0 0 0;max-height:92dvh;display:flex;flex-direction:column;background:var(--tc-bg,#fff);border-radius:var(--tc-radius,18px) var(--tc-radius,18px) 0 0;box-shadow:0 -24px 80px rgba(0,0,0,.24);overflow:hidden}
+.tc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 18px 12px;border-bottom:1px solid var(--tc-line,#e7e7e7)}
 .tc-title{margin:0;font-size:18px;line-height:1.2;font-weight:800;letter-spacing:0}
-.tc-iconbtn{display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--tc-line);border-radius:999px;background:#fff;color:#111;cursor:pointer}
-.tc-iconbtn:hover,.tc-iconbtn:focus-visible{border-color:#111;outline:2px solid var(--tc-accent);outline-offset:2px}
+.tc-iconbtn{display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--tc-line,#e7e7e7);border-radius:999px;background:var(--tc-bg,#fff);color:var(--tc-fg,#111);cursor:pointer}
+.tc-iconbtn:hover,.tc-iconbtn:focus-visible{border-color:var(--tc-fg,#111);outline:2px solid var(--tc-accent,#111);outline-offset:2px}
 .tc-body{overflow:auto;padding:10px 18px 18px}
-.tc-empty{padding:36px 0;color:var(--tc-muted);text-align:center;font-size:15px}
-.tc-item{display:grid;grid-template-columns:1fr auto;gap:12px;padding:16px 0;border-bottom:1px solid var(--tc-line)}
+.tc-empty{padding:36px 0;color:var(--tc-muted,#666);text-align:center;font-size:15px}
+.tc-item{display:grid;grid-template-columns:1fr auto;gap:12px;padding:16px 0;border-bottom:1px solid var(--tc-line,#e7e7e7)}
 .tc-name{font-weight:750;font-size:15px;line-height:1.25}
-.tc-options{margin-top:5px;color:var(--tc-muted);font-size:12px;line-height:1.35;word-break:break-word}
+.tc-options{margin-top:5px;color:var(--tc-muted,#666);font-size:12px;line-height:1.35;word-break:break-word}
 .tc-price{margin-top:8px;font-weight:700;font-size:14px}
 .tc-row-actions{display:flex;align-items:center;gap:8px;margin-top:12px}
-.tc-qty{display:flex;align-items:center;border:1px solid var(--tc-line);border-radius:999px;overflow:hidden}
-.tc-qty button{width:38px;height:38px;border:0;background:#fff;font-size:20px;line-height:1;cursor:pointer}
-.tc-qty input{width:48px;height:38px;border:0;border-inline:1px solid var(--tc-line);text-align:center;font:700 15px/1 Inter,system-ui,sans-serif}
-.tc-qty button:hover,.tc-remove:hover{background:var(--tc-soft)}
-.tc-remove{height:38px;border:1px solid var(--tc-line);border-radius:999px;background:#fff;padding:0 12px;cursor:pointer;color:#111;font-weight:650}
-.tc-line{display:flex;justify-content:space-between;gap:16px;padding:6px 0;color:var(--tc-muted);font-size:14px}
-.tc-line strong{color:#111}
+.tc-qty{display:flex;align-items:center;border:1px solid var(--tc-line,#e7e7e7);border-radius:999px;overflow:hidden}
+.tc-qty button{width:38px;height:38px;border:0;background:var(--tc-bg,#fff);color:var(--tc-fg,#111);font-size:20px;line-height:1;cursor:pointer}
+.tc-qty input{width:48px;height:38px;border:0;border-inline:1px solid var(--tc-line,#e7e7e7);text-align:center;font:700 15px/1 var(--tc-font,Inter,system-ui,sans-serif)}
+.tc-qty button:hover,.tc-remove:hover{background:var(--tc-soft,#f7f7f7)}
+.tc-qty button:focus-visible,.tc-remove:focus-visible{outline:2px solid var(--tc-accent,#111);outline-offset:2px}
+.tc-remove{height:38px;border:1px solid var(--tc-line,#e7e7e7);border-radius:999px;background:var(--tc-bg,#fff);padding:0 12px;cursor:pointer;color:var(--tc-fg,#111);font-weight:650}
+.tc-line{display:flex;justify-content:space-between;gap:16px;padding:6px 0;color:var(--tc-muted,#666);font-size:14px}
+.tc-line strong{color:var(--tc-fg,#111)}
 .tc-coupon{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:14px}
-.tc-input,.tc-field input,.tc-field textarea{width:100%;min-height:46px;border:1px solid var(--tc-line);border-radius:10px;background:#fff;color:#111;padding:11px 12px;font:500 15px/1.3 Inter,system-ui,sans-serif}
+.tc-input,.tc-field input,.tc-field textarea{width:100%;min-height:46px;border:1px solid var(--tc-line,#e7e7e7);border-radius:calc(var(--tc-radius,18px)*.55);background:var(--tc-bg,#fff);color:var(--tc-fg,#111);padding:11px 12px;font:500 15px/1.3 var(--tc-font,Inter,system-ui,sans-serif)}
 .tc-field textarea{min-height:74px;resize:vertical}
-.tc-input:focus,.tc-field input:focus,.tc-field textarea:focus{outline:2px solid var(--tc-accent);outline-offset:1px}
-.tc-btn{min-height:46px;border:1px solid #111;border-radius:999px;background:#111;color:#fff;padding:0 16px;font:800 14px/1 Inter,system-ui,sans-serif;cursor:pointer}
-.tc-btn:hover,.tc-btn:focus-visible{background:var(--tc-accent);outline:2px solid transparent}
+.tc-input:focus,.tc-field input:focus,.tc-field textarea:focus{outline:2px solid var(--tc-accent,#111);outline-offset:1px}
+.tc-btn{min-height:46px;border:1px solid var(--tc-accent,#111);border-radius:999px;background:var(--tc-accent,#111);color:#fff;padding:0 16px;font:800 14px/1 var(--tc-font,Inter,system-ui,sans-serif);cursor:pointer}
+.tc-btn:hover,.tc-btn:focus-visible{background:var(--tc-accent,#111);outline:2px solid transparent}
 .tc-btn[disabled]{opacity:.55;cursor:not-allowed}
-.tc-coupon-status{min-height:18px;margin:7px 0 0;color:var(--tc-muted);font-size:12px}
-.tc-form{display:grid;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--tc-line)}
-.tc-field span{display:block;margin:0 0 6px;font-size:12px;font-weight:750;color:#333}
-.tc-foot{padding:14px 18px 18px;border-top:1px solid var(--tc-line);background:#fff}
-.tc-toast{position:fixed;left:16px;right:16px;bottom:80px;z-index:2147483002;display:none;padding:13px 14px;border:1px solid #111;border-radius:12px;background:#111;color:#fff;text-align:center;font:700 14px/1.35 Inter,system-ui,sans-serif;box-shadow:0 14px 42px rgba(0,0,0,.2)}
+.tc-coupon-status{min-height:18px;margin:7px 0 0;color:var(--tc-muted,#666);font-size:12px}
+.tc-form{display:grid;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--tc-line,#e7e7e7)}
+.tc-field span{display:block;margin:0 0 6px;font-size:12px;font-weight:750;color:var(--tc-muted,#333)}
+.tc-foot{padding:14px 18px 18px;border-top:1px solid var(--tc-line,#e7e7e7);background:var(--tc-bg,#fff)}
+.tc-toast{position:fixed;left:16px;right:16px;bottom:80px;z-index:2147483002;display:none;padding:13px 14px;border:1px solid var(--tc-accent,#111);border-radius:calc(var(--tc-radius,18px)*.7);background:var(--tc-accent,#111);color:#fff;text-align:center;font:700 14px/1.35 var(--tc-font,Inter,system-ui,sans-serif);box-shadow:0 14px 42px rgba(0,0,0,.2)}
 .tc-toast[aria-hidden=false]{display:block;animation:tc-slide .2s ease}
 .tc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
-@media (min-width:720px){.tc-float{right:24px;bottom:24px}.tc-dialog{inset:32px 32px 32px auto;width:min(440px,calc(100vw - 64px));max-height:none;border-radius:18px}.tc-toast{left:auto;right:24px;bottom:92px;width:320px}.tc-body{padding-inline:20px}.tc-head,.tc-foot{padding-inline:20px}}
+@media (min-width:720px){.tc-float{right:24px;bottom:24px}.tc-dialog{inset:32px 32px 32px auto;width:min(440px,calc(100vw - 64px));max-height:none;border-radius:var(--tc-radius,18px)}.tc-toast{left:auto;right:24px;bottom:92px;width:320px}.tc-body{padding-inline:20px}.tc-head,.tc-foot{padding-inline:20px}}
 @media (prefers-reduced-motion:reduce){.tc-float,.tc-toast{transition:none;animation:none!important}}
+@media (prefers-color-scheme:dark){.tc-root{--tc-bg:#121212;--tc-fg:#f7f7f7;--tc-muted:#b8b8b8;--tc-line:#333;--tc-soft:#1f1f1f}}
 @keyframes tc-pop{50%{transform:scale(1.04)}}
 @keyframes tc-slide{from{transform:translateY(8px);opacity:.2}to{transform:translateY(0);opacity:1}}
 `;
@@ -483,13 +550,15 @@
     if (state.root) state.root.remove();
 
     const root = create("div", "tc-root");
-    root.style.setProperty("--tc-accent", state.config.accent || "#111111");
+    if (state.config.accent) root.style.setProperty("--tc-accent", state.config.accent);
 
     const float = create("button", "tc-float");
     float.type = "button";
-    float.setAttribute("aria-label", "Open cart");
-    float.append(create("span", "", "Cart"));
+    float.setAttribute("aria-label", text("openCart"));
+    float.append(create("span", "", text("cart")));
     const count = create("span", "tc-count", "0");
+    count.setAttribute("aria-live", "polite");
+    count.setAttribute("aria-atomic", "true");
     float.append(count);
     float.addEventListener("click", openCart);
 
@@ -505,11 +574,11 @@
     dialog.setAttribute("aria-labelledby", "tc-title");
 
     const head = create("div", "tc-head");
-    const title = create("h2", "tc-title", "Your cart");
+    const title = create("h2", "tc-title", text("title"));
     title.id = "tc-title";
     const close = create("button", "tc-iconbtn", "x");
     close.type = "button";
-    close.setAttribute("aria-label", "Close cart");
+    close.setAttribute("aria-label", text("closeCart"));
     close.addEventListener("click", closeCart);
     head.append(title, close);
 
@@ -522,9 +591,9 @@
     const couponInput = create("input", "tc-input");
     couponInput.type = "text";
     couponInput.autocomplete = "off";
-    couponInput.placeholder = "Coupon code";
-    couponInput.setAttribute("aria-label", "Coupon code");
-    const couponButton = create("button", "tc-btn", "Apply");
+    couponInput.placeholder = text("coupon");
+    couponInput.setAttribute("aria-label", text("coupon"));
+    const couponButton = create("button", "tc-btn", text("apply"));
     couponButton.type = "button";
     couponButton.addEventListener("click", () => applyCoupon(couponInput.value));
     coupon.append(couponInput, couponButton);
@@ -535,22 +604,22 @@
     const form = create("form", "tc-form");
     form.noValidate = true;
     form.append(
-      field("Name", "name", "text", true),
-      field("Phone", "phone", "tel", true),
-      field("Email", "email", "email", false),
-      field("Address", "address", "textarea", true)
+      field(text("name"), "name", "text", true),
+      field(text("phone"), "phone", "tel", true),
+      field(text("email"), "email", "email", false),
+      field(text("address"), "address", "textarea", true)
     );
     form.addEventListener("submit", checkout);
     body.append(form);
 
     const foot = create("div", "tc-foot");
     const subtotalLine = create("div", "tc-line");
-    subtotalLine.append(create("span", "", "Subtotal"), create("strong", "tc-total", money(0)));
+    subtotalLine.append(create("span", "", text("subtotal")), create("strong", "tc-total", money(0)));
     const discountLine = create("div", "tc-line");
-    discountLine.append(create("span", "", "Discount"), create("strong", "tc-discount", money(0)));
+    discountLine.append(create("span", "", text("discount")), create("strong", "tc-discount", money(0)));
     const totalLine = create("div", "tc-line");
-    totalLine.append(create("span", "", "Total"), create("strong", "tc-modal-total", money(0)));
-    const submit = create("button", "tc-btn", "Checkout");
+    totalLine.append(create("span", "", text("total")), create("strong", "tc-modal-total", money(0)));
+    const submit = create("button", "tc-btn", text("checkout"));
     submit.type = "submit";
     submit.setAttribute("form", form.id = "tc-checkout-form");
     foot.append(subtotalLine, discountLine, totalLine, submit);
@@ -610,7 +679,7 @@
 
     state.list.replaceChildren();
     if (!state.items.length) {
-      state.list.append(create("div", "tc-empty", "Your cart is empty."));
+      state.list.append(create("div", "tc-empty", text("empty")));
       return;
     }
 
@@ -626,24 +695,24 @@
       const qty = create("div", "tc-qty");
       const minus = create("button", "", "-");
       minus.type = "button";
-      minus.setAttribute("aria-label", `Decrease ${item.name} quantity`);
+      minus.setAttribute("aria-label", text("decQty", { name: item.name }));
       const input = create("input");
       input.type = "number";
       input.min = "1";
       input.step = "1";
       input.inputMode = "numeric";
       input.value = String(item.qty);
-      input.setAttribute("aria-label", `Quantity for ${item.name}`);
+      input.setAttribute("aria-label", text("qtyFor", { name: item.name }));
       if (item.stock) input.max = String(item.stock);
       const plus = create("button", "", "+");
       plus.type = "button";
-      plus.setAttribute("aria-label", `Increase ${item.name} quantity`);
+      plus.setAttribute("aria-label", text("incQty", { name: item.name }));
       const delayedUpdate = debounce(() => update(item.key, { qty: input.value }), 250);
       minus.addEventListener("click", () => update(item.key, { qty: item.qty - 1 }));
       plus.addEventListener("click", () => update(item.key, { qty: item.qty + 1 }));
       input.addEventListener("input", delayedUpdate);
       qty.append(minus, input, plus);
-      const removeBtn = create("button", "tc-remove", "Remove");
+      const removeBtn = create("button", "tc-remove", text("remove"));
       removeBtn.type = "button";
       removeBtn.addEventListener("click", () => remove(item.key));
       actions.append(qty, removeBtn);
@@ -659,7 +728,7 @@
 
   function optionsLabel(options) {
     if (!options || typeof options !== "object") return "";
-    return Object.keys(options).sort().map((key) => safeTemplate("{{key}}: {{value}}", {
+    return Object.keys(options).sort().map((key) => text("option", {
       key,
       value: options[key]
     })).join(", ");
@@ -672,17 +741,67 @@
     return safeHeaders;
   }
 
+  function hydrateCatalog() {
+    if (!state.config.catalogUrl || !win.fetch) return;
+    win.fetch(state.config.catalogUrl, {
+      headers: requestHeaders({ "Accept": "application/json" }),
+      credentials: "same-origin"
+    }).then((response) => response.ok ? response.json() : null).then((data) => {
+      const items = Array.isArray(data && data.items) ? data.items : [];
+      state.catalog = {};
+      items.forEach((item) => {
+        const id = safeString(item && item.id, 120);
+        const cents = Number.parseInt(item && item.price_cents, 10);
+        if (!id || !Number.isFinite(cents)) return;
+        state.catalog[id] = {
+          name: safeString(item.name, 180),
+          price_cents: cents,
+          stock: item.stock == null ? null : Math.max(0, Number.parseInt(item.stock, 10) || 0)
+        };
+      });
+      doc.querySelectorAll("[data-tc-id]").forEach((el) => {
+        const product = state.catalog[el.getAttribute("data-tc-id")];
+        if (!product) return;
+        const soldOut = product.stock === 0;
+        el.disabled = soldOut;
+        el.setAttribute("aria-disabled", soldOut ? "true" : "false");
+      });
+    }).catch(() => {});
+  }
+
+  function readJsonResponse(response) {
+    return response.json().catch(() => ({}));
+  }
+
+  function checkoutError(status, fallback) {
+    const message = ({
+      400: text("checkout400"),
+      403: text("checkout403"),
+      409: text("outOfStock"),
+      429: text("checkout429")
+    })[status] || (status >= 500 ? text("checkoutFailed") : fallback || text("checkoutFailed"));
+    const error = new Error(message);
+    error.tinycart = 1;
+    return error;
+  }
+
+  function setSubmitPending(submit, pending) {
+    if (!submit) return;
+    submit.disabled = pending;
+    setText(submit, pending ? text("processing") : text("checkout"));
+  }
+
   async function applyCoupon(rawCode) {
     const code = safeString(rawCode, 40).toUpperCase();
     if (!code) {
       state.coupon = null;
-      setText(state.couponStatus, "Coupon removed.");
+      setText(state.couponStatus, text("couponRemoved"));
       changed();
       emit("cart:applyCoupon", { code: "", ok: true, removed: true });
       return;
     }
 
-    setText(state.couponStatus, "Checking coupon...");
+    setText(state.couponStatus, text("checkingCoupon"));
     let result = null;
     try {
       if (typeof state.config.onValidateCoupon === "function") {
@@ -694,18 +813,21 @@
           credentials: "same-origin",
           body: JSON.stringify({ code, cart: getCart() })
         });
-        result = await response.json();
+        result = await readJsonResponse(response);
+        if (!response.ok) {
+          result = { ok: false, message: result.error || result.message || text("couponInvalid") };
+        }
       } else if (state.config.coupons && state.config.coupons[code]) {
         const local = state.config.coupons[code];
         result = typeof local === "number" ? { ok: true, type: "percent", value: local } : { ok: true, ...local };
       }
     } catch (_) {
-      result = { ok: false, message: "Coupon validation failed." };
+      result = { ok: false, message: text("couponFailed") };
     }
 
     if (!result || result.ok === false) {
       state.coupon = null;
-      setText(state.couponStatus, safeString(result && result.message ? result.message : "Coupon not valid.", 120));
+      setText(state.couponStatus, safeString(result && result.message ? result.message : text("couponInvalid"), 120));
       changed();
       emit("cart:applyCoupon", { code, ok: false });
       return;
@@ -718,7 +840,7 @@
       server: !!(state.config.apiCoupon || state.config.onValidateCoupon)
     });
     recalcCoupon();
-    setText(state.couponStatus, `${state.coupon.code} applied.`);
+    setText(state.couponStatus, text("couponApplied", { code: state.coupon.code }));
     changed();
     emit("cart:applyCoupon", { code, ok: true, coupon: state.coupon });
   }
@@ -735,20 +857,25 @@
 
   async function checkout(event) {
     event.preventDefault();
+    if (state.checkoutPending) return;
     if (!state.items.length) {
-      toast("Add an item before checkout.");
+      toast(text("addItem"));
       return;
     }
-    if (!state.form.reportValidity()) return;
+    if (!state.form.reportValidity()) {
+      toast(text("required"));
+      return;
+    }
 
     const customer = formData();
     if (!customer.name || !customer.phone || !customer.address) {
-      toast("Please complete required fields.");
+      toast(text("required"));
       return;
     }
 
     const submit = state.form.ownerDocument.querySelector('button[form="tc-checkout-form"]');
-    if (submit) submit.disabled = true;
+    state.checkoutPending = true;
+    setSubmitPending(submit, true);
     const payload = {
       cartKey: state.config.cartKey,
       currency: state.config.currency,
@@ -762,6 +889,7 @@
       let result;
       if (typeof state.config.onCheckout === "function") {
         result = await state.config.onCheckout(payload);
+        if (result && result.ok === false) throw checkoutError(0, result.error || result.message);
       } else {
         const response = await win.fetch(state.config.apiCheckout, {
           method: "POST",
@@ -769,20 +897,24 @@
           credentials: "same-origin",
           body: JSON.stringify(payload)
         });
-        result = await response.json();
-        if (!response.ok || !result.ok) throw new Error(result.error || "Checkout failed");
+        result = await readJsonResponse(response);
+        if (!response.ok || !result.ok) throw checkoutError(response.status, result.error || result.message);
       }
 
       emit("cart:checkedout", { order: result, cart: getCart() });
       ping("checkout", { order_id: result && result.order_id, total: getCart().totals.totalCents });
-      toast("Order received.");
+      toast(text("orderReceived"));
       clear();
       closeCart();
       if (result && result.pay_url) win.location.assign(result.pay_url);
     } catch (err) {
-      toast(safeString(err && err.message ? err.message : "Checkout failed. Try again.", 120));
+      const message = err && err.tinycart
+        ? err.message
+        : text("network");
+      toast(safeString(message, 120));
     } finally {
-      if (submit) submit.disabled = false;
+      state.checkoutPending = false;
+      setSubmitPending(submit, false);
     }
   }
 
@@ -939,8 +1071,10 @@
     state.config = { ...DEFAULTS, ...readScriptConfig(), ...config };
     state.config.cartKey = safeString(state.config.cartKey || "default", 80);
     state.config.currency = safeString(state.config.currency || "USD", 8).toUpperCase();
-    state.config.accent = /^#[0-9a-f]{3,8}$/i.test(state.config.accent) ? state.config.accent : "#111111";
+    state.config.locale = safeString(state.config.locale || "", 40);
+    state.config.accent = state.config.accent && /^#[0-9a-f]{3,8}$/i.test(state.config.accent) ? readableAccent(state.config.accent) : "";
     state.config.apiKey = safeString(state.config.apiKey || "", 300);
+    state.config.catalogUrl = safeString(state.config.catalogUrl || "", 500);
     state.config.maxItems = clamp(Number.parseInt(state.config.maxItems, 10) || DEFAULTS.maxItems, 1, 250);
     state.config.maxStorageBytes = clamp(Number.parseInt(state.config.maxStorageBytes, 10) || DEFAULTS.maxStorageBytes, 4096, 200 * 1024);
     state.config.maxQueueItems = clamp(Number.parseInt(state.config.maxQueueItems, 10) || DEFAULTS.maxQueueItems, 1, 50);
@@ -953,6 +1087,7 @@
       buildUI();
       bindProductListeners();
       render();
+      hydrateCatalog();
       scheduleFlushQueue();
       state.initialized = true;
     } else {

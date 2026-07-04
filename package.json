@@ -1,0 +1,44 @@
+{
+  "name": "tinycartjs",
+  "version": "0.2.0",
+  "description": "A tiny dependency-free cart widget and shared-hosting PHP checkout endpoints.",
+  "license": "MIT",
+  "type": "module",
+  "main": "tinycart.js",
+  "homepage": "https://github.com/tanzir71/tinycartjs#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tanzir71/tinycartjs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tanzir71/tinycartjs/issues"
+  },
+  "keywords": [
+    "cart",
+    "checkout",
+    "ecommerce",
+    "vanilla-js",
+    "php",
+    "sqlite"
+  ],
+  "files": [
+    "tinycart.js",
+    "checkout.php",
+    "coupon.php",
+    "payment.php",
+    "catalog.php",
+    "admin.php",
+    "collect.php",
+    "README.md",
+    "SETUP.md",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "examples",
+    "scripts/minify.mjs"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.mjs && node tests/static.test.mjs",
+    "lint:php": "php -l checkout.php && php -l coupon.php && php -l payment.php && php -l catalog.php && php -l admin.php && php -l collect.php",
+    "build:min": "node scripts/minify.mjs"
+  }
+}

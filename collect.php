@@ -42,11 +42,11 @@ function collectMain(): void
         }
 
         collectRequireApiKeyIfConfigured();
+        [$raw, $payload] = collectReadJson();
+        $event = collectValidateEvent($payload);
+
         $pdo = collectDb();
         rateLimit($pdo, collectClientIp());
-
-        [$raw, $payload] = collectReadJson($pdo);
-        $event = collectValidateEvent($payload);
         collectStoreEvent($pdo, $event);
 
         collectJson(['ok' => true]);
@@ -170,7 +170,7 @@ function rateLimit(PDO $pdo, string $ip): void
     }
 }
 
-function collectReadJson(PDO $pdo): array
+function collectReadJson(): array
 {
     $raw = file_get_contents('php://input');
     if ($raw === false) {
@@ -178,13 +178,11 @@ function collectReadJson(PDO $pdo): array
     }
 
     if (strlen($raw) > MAX_PAYLOAD_BYTES) {
-        collectStoreFailedPayload($pdo, 'payload too large', substr($raw, 0, FAILED_PAYLOAD_MAX_BYTES));
         throw new CollectClientError('Payload too large', 413);
     }
 
     $payload = json_decode($raw, true);
     if (!is_array($payload)) {
-        collectStoreFailedPayload($pdo, 'invalid json', substr($raw, 0, FAILED_PAYLOAD_MAX_BYTES));
         throw new CollectClientError('Invalid JSON', 400);
     }
 
@@ -253,7 +251,10 @@ function collectCleanString(mixed $value, int $maxLength): string
 {
     $value = is_scalar($value) ? (string)$value : '';
     $value = preg_replace('/[[:cntrl:]]/', '', $value) ?? '';
-    return mb_substr(trim($value), 0, $maxLength, 'UTF-8');
+    $value = trim($value);
+    return function_exists('mb_substr')
+        ? mb_substr($value, 0, $maxLength, 'UTF-8')
+        : substr($value, 0, $maxLength);
 }
 
 function collectClientIp(): string

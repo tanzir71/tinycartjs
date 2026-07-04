@@ -28,6 +28,45 @@ curl -i -X POST http://127.0.0.1:8000/checkout.php \
 
 Expected: HTTP `400` with `price mismatch`.
 
+## Coupon Validation
+
+```bash
+curl -i -X POST http://127.0.0.1:8000/coupon.php \
+  -H "Origin: http://127.0.0.1:8000" \
+  -H "Content-Type: application/json" \
+  --data '{"code":"SAVE10","cart":{"totals":{"subtotalCents":2400}}}'
+```
+
+Expected: HTTP `200` with `{"ok":true,...,"discount_cents":240}`.
+
+Invalid or expired codes:
+
+```bash
+curl -i -X POST http://127.0.0.1:8000/coupon.php \
+  -H "Origin: http://127.0.0.1:8000" \
+  -H "Content-Type: application/json" \
+  --data '{"code":"EXPIRED","cart":{"totals":{"subtotalCents":2400}}}'
+```
+
+Expected: HTTP `400` with `Coupon expired.`.
+
+Forged checkout coupons are ignored. Sending `{"code":"FAKE100","amount":2400}` in `cart.coupon` should still return `discount_cents:0` and `total_cents` equal to the server subtotal.
+
+## Payment Handoff
+
+With `PAYMENT_PROVIDER` blank in `checkout.php`, successful checkout should still return `"pay_url":null`.
+
+With Stripe or PayPal configured, successful checkout stores the order with `payment_status` pending, creates a provider checkout/order using the server-recomputed `total_cents`, and returns a non-null `pay_url`. Stripe paid status is finalized by signed `checkout.session.completed` webhooks sent to `payment.php`; PayPal paid status is finalized by the return handler at `payment.php?order_id={ORDER_ID}` after capture.
+
+## Catalog Endpoint
+
+```bash
+curl -i http://127.0.0.1:8000/catalog.php \
+  -H "Origin: http://127.0.0.1:8000"
+```
+
+Expected: HTTP `200` with `{"ok":true,"items":[...]}`, `Access-Control-Allow-Origin` echoed, and `Cache-Control: public, max-age=60`.
+
 ## Origin Rejection
 
 ```bash
@@ -57,6 +96,53 @@ fetch("/checkout.php", {
   })
 }).then(r => r.json()).then(console.log);
 ```
+
+## Locale and Strings
+
+Set `data-tc-config='{"currency":"EUR","locale":"de-DE","strings":{"cart":"Warenkorb","checkout":"Bestellen"}}'` on `sample.html`.
+
+Expected: cart totals use German EUR formatting and the floating button/checkout button use the configured text.
+
+## Theme Tokens
+
+Add a page style such as:
+
+```css
+.tc-root { --tc-accent:#0f766e; --tc-radius:4px; --tc-font:system-ui,sans-serif; }
+```
+
+Expected: only TinyCart UI changes; host page buttons/inputs outside `.tc-root` are unaffected.
+
+## Persistent Cart
+
+Add an item with options, apply `SAVE10`, then reload `sample.html`.
+
+Expected: the same item, options, coupon, and discount return. If localStorage contains a future schema version, TinyCart clears it without throwing.
+
+## Inventory Enforcement
+
+Send a checkout with `qty` higher than the server stock for a product.
+
+Expected: HTTP `400` during catalog validation if the request exceeds configured product stock. If stock is depleted by earlier successful orders, checkout returns HTTP `409` with `Out of stock`, the widget shows a stock-specific message, and the order is not stored.
+
+## Webhooks and Email
+
+Configure `WEBHOOK_URL` and `WEBHOOK_SECRET`, then complete a checkout.
+
+Expected: checkout still succeeds even if the webhook endpoint is down. Successful webhook requests include `X-TinyCart-Signature` as an HMAC-SHA256 of the JSON body, and the JSON body contains totals/items but no customer PII.
+
+## Order Admin
+
+With the default `admin.php` config, the page is disabled:
+
+```bash
+curl -i http://127.0.0.1:8000/admin.php \
+  -H "Origin: http://127.0.0.1:8000"
+```
+
+Expected: HTTP `403` with `Admin access is not configured.`.
+
+After configuring `ADMIN_API_KEYS` or `ADMIN_PASSWORD_HASH`, `admin.php` should list recent orders with totals and pagination. Probe order/customer fields containing markup should render escaped text, not executable HTML.
 
 ## Beacon / Collect Accepts JSON
 
@@ -123,7 +209,7 @@ Expected:
 
 ## CSRF Expectations
 
-TinyCart has no admin mutation endpoints. If you add admin order-management routes, enforce login and CSRF tokens there. Public checkout/collect endpoints rely on explicit `Origin` checks, optional API keys, validation, and rate limits rather than browser cookies.
+TinyCart's admin page is read-only. If you add order-management routes later, enforce login and CSRF tokens there. Public checkout/collect endpoints rely on explicit `Origin` checks, optional API keys, validation, and rate limits rather than browser cookies.
 
 ## Collect Rate Limit
 

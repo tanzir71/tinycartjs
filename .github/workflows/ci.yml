@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: json, pdo_sqlite
+          coverage: none
+
+      - name: Run Node tests
+        run: node --test tests/*.test.mjs
+
+      - name: Run static invariants
+        run: node tests/static.test.mjs
+
+      - name: Lint PHP
+        shell: bash
+        run: |
+          for file in *.php; do
+            php -l "$file"
+          done
+
+      - name: Check tinycart.js byte size
+        shell: bash
+        run: |
+          bytes=$(wc -c < tinycart.js)
+          echo "tinycart.js: ${bytes} bytes"
+          test "$bytes" -lt 44000

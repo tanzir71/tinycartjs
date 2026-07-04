@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TinyCart Plain HTML Example</title>
+</head>
+<body>
+  <h1>Plain HTML shop</h1>
+
+  <button
+    data-tc-id="tee-001"
+    data-tc-name="TinyCart Tee"
+    data-tc-price="24.00"
+    data-tc-options='{"size":"M","color":"Black"}'>
+    Add TinyCart Tee
+  </button>
+
+  <script
+    src="../tinycart.js"
+    data-tc-config='{"cartKey":"plain-html","currency":"USD","apiCheckout":"/checkout.php","apiCoupon":"/coupon.php","catalogUrl":"/catalog.php","analyticsUrl":"/collect.php"}'>
+  </script>
+</body>
+</html>
