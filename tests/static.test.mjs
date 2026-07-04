@@ -225,6 +225,11 @@ assert.ok(index.includes("max-width: 760px"), "landing should use a compact hero
 assert.ok(index.includes("clamp(40px, 6.4vw, 72px)"), "landing headline should avoid oversized display text");
 assert.ok(index.includes("clamp(44px, 7vw, 76px)"), "landing sections should keep tighter vertical rhythm");
 assert.ok(index.includes("scrollbar-color: var(--fg) var(--soft)"), "landing scrollbar should match the site design");
+const heroDiagram = index.match(/<svg class="tc-diagram"[\s\S]*?<\/svg>/)?.[0] ?? "";
+assert.ok(heroDiagram, "hero should use the refined TinyCart diagram");
+assert.ok(heroDiagram.includes('vector-effect="non-scaling-stroke"'), "hero diagram should keep crisp non-scaling hairlines");
+assert.doesNotMatch(heroDiagram, /stroke-width="2"/, "hero diagram should avoid thick mockup strokes");
+assert.ok(heroDiagram.includes("TC/CART"), "hero diagram should read as a precise TinyCart schematic");
 
 assert.ok(js.includes("--tc-bg:#fff"), "cart widget should default to light mode");
 assert.ok(js.includes(".tc-dialog{position:fixed;inset:auto 12px 12px 12px"), "cart modal should use compact mobile spacing");

@@ -229,7 +229,12 @@
       background: var(--soft);
       border: 1px solid var(--line);
     }
-    .mockup svg { width: min(70%, 280px); height: auto; filter: drop-shadow(0 18px 28px rgba(0,0,0,0.10)); }
+    .mockup .tc-diagram {
+      width: min(78%, 320px);
+      height: auto;
+      filter: drop-shadow(0 12px 22px rgba(0,0,0,0.07));
+    }
+    .tc-diagram [stroke] { vector-effect: non-scaling-stroke; }
 
     /* ---------- Highlights ---------- */
     section { padding: clamp(44px, 7vw, 76px) 0; border-top: 1px solid var(--line); }
@@ -383,26 +388,41 @@
           </div>
         </div>
 
-        <div class="mockup" aria-label="TinyCart cart UI mockup">
-          <svg viewBox="0 0 310 330" role="img" aria-labelledby="mock-title" xmlns="http://www.w3.org/2000/svg">
-            <title id="mock-title">Floating cart and checkout modal mockup</title>
-            <rect x="22" y="16" width="230" height="292" rx="8" fill="#fff" stroke="#111" stroke-width="2"/>
-            <rect x="42" y="42" width="120" height="12" rx="3" fill="#111"/>
-            <circle cx="218" cy="48" r="14" fill="#fff" stroke="#111" stroke-width="2"/>
-            <path d="M213 43l10 10M223 43l-10 10" stroke="#111" stroke-width="2" stroke-linecap="round"/>
-            <line x1="22" y1="76" x2="252" y2="76" stroke="#E8E8E8" stroke-width="2"/>
-            <rect x="42" y="100" width="92" height="12" rx="3" fill="#111"/>
-            <rect x="42" y="122" width="136" height="8" rx="3" fill="#777"/>
-            <rect x="184" y="102" width="42" height="12" rx="3" fill="#111"/>
-            <rect x="42" y="158" width="78" height="12" rx="3" fill="#111"/>
-            <rect x="42" y="180" width="116" height="8" rx="3" fill="#777"/>
-            <rect x="184" y="160" width="42" height="12" rx="3" fill="#111"/>
-            <line x1="42" y1="220" x2="232" y2="220" stroke="#E8E8E8" stroke-width="2"/>
-            <rect x="42" y="242" width="190" height="42" rx="4" fill="#111"/>
-            <rect x="77" y="257" width="120" height="11" rx="3" fill="#fff"/>
-            <rect x="172" y="254" width="116" height="54" rx="6" fill="#111"/>
-            <circle cx="260" cy="281" r="15" fill="#fff"/>
-            <text x="260" y="286" text-anchor="middle" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#111">3</text>
+        <div class="mockup" aria-label="TinyCart cart flow schematic">
+          <svg class="tc-diagram" viewBox="0 0 360 320" role="img" aria-labelledby="mock-title" xmlns="http://www.w3.org/2000/svg">
+            <title id="mock-title">TinyCart checkout flow schematic</title>
+            <g fill="none" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke">
+              <rect x="28" y="34" width="212" height="238" rx="12" fill="#fff" stroke="#111" stroke-width="1.25"/>
+              <path d="M28 70h212M28 219h212" stroke="#dedede" stroke-width="1"/>
+              <circle cx="214" cy="52" r="10" fill="#fff" stroke="#111" stroke-width="1"/>
+              <path d="M210.5 48.5l7 7M217.5 48.5l-7 7" stroke="#111" stroke-width="1"/>
+
+              <rect x="50" y="91" width="26" height="26" rx="4" fill="#f7f7f7" stroke="#d7d7d7" stroke-width="1"/>
+              <path d="M89 96h74M89 110h50M183 98h31M89 124h35" stroke="#111" stroke-width="1"/>
+              <rect x="50" y="143" width="26" height="26" rx="4" fill="#f7f7f7" stroke="#d7d7d7" stroke-width="1"/>
+              <path d="M89 148h66M89 162h42M183 150h31M89 176h35" stroke="#111" stroke-width="1"/>
+              <rect x="50" y="188" width="72" height="26" rx="13" stroke="#111" stroke-width="1"/>
+              <path d="M61 201h6M76 201h20M107 201h6" stroke="#111" stroke-width="1"/>
+              <path d="M50 240h70M163 240h51M50 254h47M163 254h51" stroke="#111" stroke-width="1"/>
+
+              <circle cx="294" cy="101" r="31" fill="#fff" stroke="#111" stroke-width="1.25"/>
+              <path d="M280 91h7l4 21h20l3-14h-21M293 118h1M309 118h1" stroke="#111" stroke-width="1.2"/>
+              <circle cx="316" cy="78" r="10" fill="#111" stroke="#111" stroke-width="1"/>
+              <path d="M240 106c12 0 16-5 24-5M240 207h25" stroke="#111" stroke-width="1" stroke-dasharray="3 6"/>
+
+              <rect x="264" y="176" width="68" height="66" rx="10" fill="#fff" stroke="#111" stroke-width="1.25"/>
+              <path d="M279 201h38M279 216h23M279 229h31" stroke="#111" stroke-width="1"/>
+              <path d="M294 241l-3 3-7-7" stroke="#111" stroke-width="1.1"/>
+            </g>
+            <g font-family="Inter, Arial, sans-serif" fill="#111">
+              <text x="50" y="56" font-size="11" font-weight="800" letter-spacing=".14em">TC/CART</text>
+              <text x="150" y="56" font-size="9" font-weight="700" letter-spacing=".12em" fill="#777">UI · 02</text>
+              <text x="50" y="84" font-size="8.5" font-weight="800" letter-spacing=".16em" fill="#777">ITEMS</text>
+              <text x="50" y="232" font-size="8.5" font-weight="800" letter-spacing=".16em" fill="#777">TOTAL</text>
+              <text x="294" y="82" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">3</text>
+              <text x="298" y="164" text-anchor="middle" font-size="8.5" font-weight="800" letter-spacing=".14em" fill="#777">SERVER</text>
+              <text x="298" y="193" text-anchor="middle" font-size="8.5" font-weight="800" letter-spacing=".14em">VERIFY</text>
+            </g>
           </svg>
         </div>
       </div>
