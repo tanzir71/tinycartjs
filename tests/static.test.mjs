@@ -194,6 +194,12 @@ assert.ok(wordpressExample.includes("add_shortcode") && wordpressExample.include
 
 const staticSiteExample = read("examples/astro-eleventy.md");
 assert.ok(staticSiteExample.includes("Astro") && staticSiteExample.includes("Eleventy") && staticSiteExample.includes("data-tc-options"), "static site example should cover Astro and Eleventy");
+assert.doesNotMatch(stripLiquidRawBlocks(staticSiteExample), /{%\s*(?!raw|endraw)\w+/,
+  "Jekyll-rendered Markdown examples must wrap framework Liquid-like tags in raw blocks");
+for (const [file, markdown] of [["README.md", readme], ["examples/astro-eleventy.md", staticSiteExample]]) {
+  assert.doesNotMatch(stripLiquidRawBlocks(markdown), /({%\s*(?!raw|endraw)\w+)|({{\s*[\w.]+)/,
+    `${file} must wrap Liquid-like examples in raw blocks for GitHub Pages`);
+}
 
 const reactExample = read("examples/react-wrapper.jsx");
 assert.ok(reactExample.includes("useEffect") && reactExample.includes("window.tinycart.init") && reactExample.includes("data-tc-id"), "React example should initialize TinyCart without adding it as a dependency");
@@ -218,3 +224,7 @@ assert.ok(index.includes("https://github.com/tanzir71/tinycartjs"), "landing sho
 assert.ok(index.includes("README.md") && index.includes("SECURITY.md"), "landing should link docs and security");
 
 console.log("Static TinyCart checks passed.");
+
+function stripLiquidRawBlocks(markdown) {
+  return markdown.replace(/{%\s*raw\s*%}[\s\S]*?{%\s*endraw\s*%}/g, "");
+}

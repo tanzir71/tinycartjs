@@ -108,7 +108,7 @@ Set `locale` to any `Intl.NumberFormat` locale, such as `de-DE` or `ja-JP`, to l
 - `tinycart.clear()`: empties cart and coupon state.
 - `tinycart.applyCoupon(code)`: validates a coupon locally, through `apiCoupon`, or with `onValidateCoupon`.
 - `tinycart.flushQueue()`: retries queued analytics pings immediately.
-- `tinycart.safeTemplate(template, values)`: interpolates `{{placeholders}}` with escaped values and rejects template strings containing tags.
+- `tinycart.safeTemplate(template, values)`: interpolates `{% raw %}{{placeholders}}{% endraw %}` with escaped values and rejects template strings containing tags.
 - `tinycart.on(event, handler)`: subscribes and returns an unsubscribe function.
 
 Events:

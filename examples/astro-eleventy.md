@@ -28,6 +28,7 @@ const product = {
 
 ## Eleventy
 
+{% raw %}
 ```njk
 {% set product = {
   id: "tee-001",
@@ -49,3 +50,4 @@ const product = {
   data-tc-config='{"cartKey":"eleventy-store","currency":"USD","apiCheckout":"/tinycart/checkout.php","apiCoupon":"/tinycart/coupon.php","catalogUrl":"/tinycart/catalog.php"}'>
 </script>
 ```
+{% endraw %}
