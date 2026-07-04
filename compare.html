@@ -1,0 +1,85 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TinyCart Compare - Alternatives for static storefronts</title>
+  <meta name="description" content="Compare TinyCart with Shopify Buy Button, Snipcart, Gumroad, and Stripe Payment Links for static sites, shared hosting, and self-owned checkout data.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0b0b'/%3E%3Cpath d='M18 20h5l3 18h20l3-12H28' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='30' cy='46' r='3' fill='%23fff'/%3E%3Ccircle cx='44' cy='46' r='3' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <header>
+    <div class="wrap header-inner">
+      <a class="brand" href="index.html"><span class="dot" aria-hidden="true"></span>TinyCart</a>
+      <nav aria-label="Primary">
+        <a href="docs.html">Docs</a>
+        <a href="setup.html">Setup</a>
+        <a href="security.html">Security</a>
+        <a href="compare.html" aria-current="page">Compare</a>
+        <a class="ghost" href="https://github.com/tanzir71/tinycartjs">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="doc-hero wrap">
+      <p class="eyebrow">COMPARE - STATIC STORES</p>
+      <h1>TinyCart Compare</h1>
+      <p class="lead">TinyCart is for small static storefronts that need an embeddable cart, server-verified orders, and files you own. It is not trying to replace full commerce platforms.</p>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="diagram-wrap">
+          <div class="diagram-row">
+            <div class="flow-card"><span class="k">01 / embed</span><strong>Product buttons</strong><p>Keep your HTML and add <code>data-tc-*</code> attributes.</p></div>
+            <div class="flow-card"><span class="k">02 / cart</span><strong>Lightweight UI</strong><p>Floating cart, coupons, quantities, and checkout form.</p></div>
+            <div class="flow-card"><span class="k">03 / verify</span><strong>Server truth</strong><p>PHP re-prices, validates stock, and stores orders.</p></div>
+            <div class="flow-card"><span class="k">04 / own</span><strong>Your data</strong><p>SQLite, webhooks, payment handoff, and optional analytics.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head"><span class="idx">MATRIX</span><h2>Pick by job, not by logo.</h2><p>These tools solve different problems. TinyCart wins when you want a tiny cart layer and your own backend truth.</p></div>
+        <div class="table-wrap">
+          <table class="comparison-table">
+            <thead><tr><th>Option</th><th>Best for</th><th>Tradeoff</th><th>TinyCart angle</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Shopify Buy Button</strong></td><td>Existing Shopify stores embedding products elsewhere.</td><td>Commerce data and checkout live in Shopify.</td><td>Better when you do not want a Shopify account for a tiny static store.</td></tr>
+              <tr><td><strong>Snipcart</strong></td><td>Hosted cart and checkout with many commerce features.</td><td>More platform surface and vendor dependency.</td><td>Better when you prefer auditable PHP files and SQLite.</td></tr>
+              <tr><td><strong>Gumroad</strong></td><td>Creator products, downloads, and hosted sales pages.</td><td>Less control over cart behavior and order pipeline.</td><td>Better when your own site should remain the storefront.</td></tr>
+              <tr><td><strong>Stripe Payment Links</strong></td><td>Fast hosted payment pages for fixed offers.</td><td>No real cart or server-side product catalog layer by itself.</td><td>Better when you need multi-item cart UX before payment handoff.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head"><span class="idx">PAGES</span><h2>Focused comparisons</h2><p>Each page is short, direct, and honest about when TinyCart is a fit.</p></div>
+        <div class="grid grid-4 compare-links">
+          <div class="cell"><h3>vs Shopify Buy Button</h3><p>For static stores that do not want Shopify as the control plane.</p><a href="shopify-buy-button-alternative.html">Compare</a></div>
+          <div class="cell"><h3>vs Snipcart</h3><p>For teams that want fewer hosted cart dependencies.</p><a href="snipcart-alternative.html">Compare</a></div>
+          <div class="cell"><h3>vs Gumroad</h3><p>For stores that need their own site, order data, and checkout endpoint.</p><a href="gumroad-alternative.html">Compare</a></div>
+          <div class="cell"><h3>vs Stripe Payment Links</h3><p>For multi-item carts before payment handoff.</p><a href="stripe-payment-links-alternative.html">Compare</a></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-inner">
+      <span>Comparison pages for tiny static commerce.</span>
+      <div class="footer-links"><a href="docs.html">docs</a><a href="setup.html">setup</a><a href="security.html">security</a></div>
+    </div>
+  </footer>
+</body>
+</html>

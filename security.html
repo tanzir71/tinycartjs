@@ -1,0 +1,92 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TinyCart Security - Server-verified storefront guidance</title>
+  <meta name="description" content="TinyCart security guidance for server-side price verification, HMAC signatures, CSP, CORS, API keys, localStorage, and privacy.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0b0b'/%3E%3Cpath d='M18 20h5l3 18h20l3-12H28' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='30' cy='46' r='3' fill='%23fff'/%3E%3Ccircle cx='44' cy='46' r='3' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <header>
+    <div class="wrap header-inner">
+      <a class="brand" href="index.html"><span class="dot" aria-hidden="true"></span>TinyCart</a>
+      <nav aria-label="Primary">
+        <a href="docs.html">Docs</a>
+        <a href="setup.html">Setup</a>
+        <a href="security.html" aria-current="page">Security</a>
+        <a href="compare.html">Compare</a>
+        <a class="ghost" href="https://github.com/tanzir71/tinycartjs">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="doc-hero wrap">
+      <p class="eyebrow">SECURITY - SERVER TRUTH</p>
+      <h1>TinyCart Security</h1>
+      <p class="lead">TinyCart is a storefront widget, not a payment processor. The browser makes checkout pleasant; the server must decide price, discount, stock, payment status, and persistence.</p>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head"><span class="idx">SAFEGUARDS</span><h2>Implemented safeguards</h2><p>The default PHP endpoints are deliberately boring: allowlists, prepared statements, bounded inputs, and logs that avoid leaking internals to customers.</p></div>
+        <div class="grid grid-3">
+          <div class="cell"><span class="k">PRICE</span><h3>server-side price verification</h3><p><code>checkout.php</code> recomputes products, coupons, totals, and inventory from server data before storing orders.</p></div>
+          <div class="cell"><span class="k">HMAC</span><h3>Signed product data</h3><p>Optional HMAC signatures with expiry add defense in depth for rendered product buttons.</p></div>
+          <div class="cell"><span class="k">SQL</span><h3>Prepared writes</h3><p>SQLite writes use PDO prepared statements and transaction boundaries for order and inventory changes.</p></div>
+          <div class="cell"><span class="k">CORS</span><h3>Exact origins</h3><p>Checkout, coupon, catalog, admin, and collect endpoints use origin allowlists. Avoid wildcard CORS.</p></div>
+          <div class="cell"><span class="k">LIMITS</span><h3>Bounded input</h3><p>Payload size, shape, rate limits, product option parsing, cart storage, and analytics queues are constrained.</p></div>
+          <div class="cell"><span class="k">DOM</span><h3>Text-safe UI</h3><p>Merchant and customer strings are inserted with safe text APIs or escaped templates, not raw HTML.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap doc-shell">
+        <aside class="doc-side" aria-label="Security sections">
+          <a href="#merchant">Merchant duties</a>
+          <a href="#csp">CSP</a>
+          <a href="#rotation">Rotation</a>
+          <a href="#privacy">Privacy</a>
+        </aside>
+        <div class="doc-content">
+          <section id="merchant">
+            <h2>Still required from merchants</h2>
+            <ul>
+              <li>Verify product ids, prices, stock, totals, discounts, and payment status server-side.</li>
+              <li>Protect admin and order-management routes with authentication and CSRF protections.</li>
+              <li>Do not expose <code>HMAC_SECRET</code>, API keys, payment secrets, or database files.</li>
+              <li>Use HTTPS everywhere and collect only the personal data your policy allows.</li>
+            </ul>
+          </section>
+          <section id="csp">
+            <h2>Content-Security-Policy</h2>
+            <p>Use a Content-Security-Policy that names the checkout and collect hosts exactly.</p>
+            <pre class="pre-block">Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self' https://checkout.example.com https://collect.example.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'</pre>
+          </section>
+          <section id="rotation">
+            <h2>API key and HMAC rotation</h2>
+            <p>Add a new key or signing secret, deploy clients that use it, confirm traffic moved, then remove the old value after signatures expire. Keep secrets outside git where possible.</p>
+          </section>
+          <section id="privacy">
+            <h2>Privacy notes</h2>
+            <p>Checkout stores order details, contact fields you request, item data, page URL, an IP hash, and timestamps. The collect endpoint stores operational events, user agent, origin, IP hash, and timestamps. Publish retention terms and delete or export data under applicable privacy law.</p>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-inner">
+      <span>Security notes for static storefront plumbing.</span>
+      <div class="footer-links"><a href="docs.html">docs</a><a href="setup.html">setup</a><a href="compare.html">compare</a></div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,156 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TinyCart Docs - Script tag storefront setup</title>
+  <meta name="description" content="TinyCart HTML docs for product buttons, configuration, catalog hydration, coupons, payments, analytics, and the developer API.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0b0b'/%3E%3Cpath d='M18 20h5l3 18h20l3-12H28' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='30' cy='46' r='3' fill='%23fff'/%3E%3Ccircle cx='44' cy='46' r='3' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <header>
+    <div class="wrap header-inner">
+      <a class="brand" href="index.html"><span class="dot" aria-hidden="true"></span>TinyCart</a>
+      <nav aria-label="Primary">
+        <a href="docs.html" aria-current="page">Docs</a>
+        <a href="setup.html">Setup</a>
+        <a href="security.html">Security</a>
+        <a href="compare.html">Compare</a>
+        <a class="ghost" href="https://github.com/tanzir71/tinycartjs">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="doc-hero wrap">
+      <p class="eyebrow">DOCS - 01</p>
+      <h1>TinyCart Docs</h1>
+      <p class="lead">One readable client file turns product buttons into a cart. Your endpoint remains the source of truth for price, coupons, stock, payment status, and order storage.</p>
+      <div class="actions">
+        <a class="btn" href="#quick-start">Start with HTML</a>
+        <a class="btn secondary" href="setup.html">Deploy the PHP endpoints</a>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap doc-shell">
+        <aside class="doc-side" aria-label="Docs sections">
+          <a href="#quick-start">Quick start</a>
+          <a href="#attributes">Product attributes</a>
+          <a href="#configuration">Configuration</a>
+          <a href="#api">Developer API</a>
+          <a href="#server">Server endpoints</a>
+          <a href="#theme">Theme tokens</a>
+        </aside>
+
+        <div class="doc-content">
+          <section id="quick-start">
+            <span class="idx">START</span>
+            <h2>Mark a button, load the script.</h2>
+            <p>Use normal HTML for your product layout. TinyCart looks for product buttons with <code>data-tc-id</code>, reads safe attributes, and stores the cart in <code>localStorage</code>.</p>
+            <pre class="pre-block">&lt;button
+  data-tc-id="tee-001"
+  data-tc-name="TinyCart Tee"
+  data-tc-price="24.00"
+  data-tc-qty="1"
+  data-tc-options='{"size":"M","color":"Black"}'&gt;
+  Add tee
+&lt;/button&gt;
+
+&lt;script
+  src="tinycart.js"
+  data-tc-config='{"cartKey":"store-1","currency":"USD","apiCheckout":"/checkout.php","apiCoupon":"/coupon.php"}'&gt;
+&lt;/script&gt;</pre>
+          </section>
+
+          <section id="attributes">
+            <span class="idx">HTML</span>
+            <h2>Product attributes</h2>
+            <ul>
+              <li><code>data-tc-id</code> is the required product id. It should exist in your server catalog.</li>
+              <li><code>data-tc-name</code> is display text. TinyCart inserts it with safe text APIs.</li>
+              <li><code>data-tc-price</code> is a decimal display price. Checkout must re-check it server-side.</li>
+              <li><code>data-tc-qty</code>, <code>data-tc-options</code>, and <code>data-tc-stock</code> control defaults, variants, and client-side caps.</li>
+              <li><code>data-tc-sig</code> and <code>data-tc-exp</code> carry optional HMAC product signatures.</li>
+            </ul>
+          </section>
+
+          <section id="configuration">
+            <span class="idx">CONFIG</span>
+            <h2>Configuration</h2>
+            <p>Use <code>data-tc-config</code> for JSON-only setup. Use <code>tinycart.init</code> when you need hooks or custom functions.</p>
+            <pre class="pre-block">tinycart.init({
+  cartKey: "store-1",
+  currency: "USD",
+  locale: "en-US",
+  apiCheckout: "/checkout.php",
+  apiCoupon: "/coupon.php",
+  catalogUrl: "/catalog.php",
+  analyticsUrl: "/collect.php",
+  apiKey: "optional-public-endpoint-key",
+  accent: "#1A73E8",
+  allowedOptionKeys: ["size", "color", "finish"],
+  onCheckout: async (payload) =&gt; fetch("/checkout.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then((res) =&gt; res.json())
+});</pre>
+          </section>
+
+          <section id="api">
+            <span class="idx">API</span>
+            <h2>Developer API</h2>
+            <div class="grid grid-2">
+              <div class="cell"><h3>Cart control</h3><p><code>init</code>, <code>add</code>, <code>remove</code>, <code>update</code>, <code>getCart</code>, and <code>clear</code> cover the cart lifecycle.</p></div>
+              <div class="cell"><h3>Checkout and coupons</h3><p><code>applyCoupon</code> validates locally, through <code>apiCoupon</code>, or with an <code>onValidateCoupon</code> hook.</p></div>
+              <div class="cell"><h3>Events</h3><p>Subscribe to <code>cart:updated</code>, <code>cart:opened</code>, <code>cart:checkedout</code>, and <code>cart:applyCoupon</code>.</p></div>
+              <div class="cell"><h3>Utilities</h3><p><code>flushQueue</code> retries analytics sends. <code>safeTemplate</code> escapes placeholders for integrations.</p></div>
+            </div>
+          </section>
+
+          <section id="server">
+            <span class="idx">SERVER</span>
+            <h2>Server endpoints</h2>
+            <p><code>checkout.php</code> validates origins, rate limits requests, recomputes totals, checks inventory, stores the order, and can hand off to Stripe or PayPal. Optional endpoints add coupons, catalog hydration, analytics collection, payment webhook handling, and a read-only admin view.</p>
+            <div class="actions">
+              <a class="btn secondary" href="setup.html">Setup guide</a>
+              <a class="btn secondary" href="security.html">Security guide</a>
+              <a class="btn secondary" href="compare.html">Comparison pages</a>
+            </div>
+          </section>
+
+          <section id="theme">
+            <span class="idx">UI</span>
+            <h2>Theme tokens</h2>
+            <p>TinyCart styles are scoped under <code>.tc-root</code> and can be overridden with CSS variables without forking the library.</p>
+            <pre class="pre-block">.tc-root {
+  --tc-accent: #1A73E8;
+  --tc-bg: #fff;
+  --tc-fg: #080808;
+  --tc-line: #e7e7e7;
+  --tc-radius: 18px;
+  --tc-font: Inter, system-ui, sans-serif;
+}</pre>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-inner">
+      <span>Readable storefront docs for static sites and shared hosting.</span>
+      <div class="footer-links">
+        <a href="setup.html">setup</a>
+        <a href="security.html">security</a>
+        <a href="compare.html">compare</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

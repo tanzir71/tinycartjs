@@ -1,0 +1,87 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shopify Buy Button alternative - TinyCart for static storefronts</title>
+  <meta name="description" content="A practical Shopify Buy Button alternative comparison for small static stores that want a self-hosted TinyCart checkout layer.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0b0b'/%3E%3Cpath d='M18 20h5l3 18h20l3-12H28' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='30' cy='46' r='3' fill='%23fff'/%3E%3Ccircle cx='44' cy='46' r='3' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <header>
+    <div class="wrap header-inner">
+      <a class="brand" href="index.html"><span class="dot" aria-hidden="true"></span>TinyCart</a>
+      <nav aria-label="Primary">
+        <a href="docs.html">Docs</a>
+        <a href="setup.html">Setup</a>
+        <a href="security.html">Security</a>
+        <a href="compare.html">Compare</a>
+        <a class="ghost" href="https://github.com/tanzir71/tinycartjs">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="doc-hero wrap">
+      <p class="eyebrow">ALTERNATIVE - SHOPIFY</p>
+      <h1>Shopify Buy Button alternative</h1>
+      <p class="lead">TinyCart is a better fit when you want a tiny embeddable cart on a static site, server-side order verification, and checkout files you can audit. Shopify Buy Button can still be the better choice when you want its hosted platform workflow.</p>
+      <div class="actions">
+        <a class="btn" href="docs.html">Read TinyCart Docs</a>
+        <a class="btn secondary" href="compare.html">Back to compare.html</a>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="idx">DECISION</span>
+          <h2>Choose the smaller tool when the job is smaller.</h2>
+          <p>This is a fit comparison, not a feature scoreboard. TinyCart is intentionally narrower than a commerce platform.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="comparison-table">
+            <thead><tr><th>Question</th><th>TinyCart</th><th>Shopify Buy Button</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Best fit</strong></td><td>Small static stores that do not need Shopify as the control plane.</td><td>Embedding products from an existing Shopify store, while Shopify owns catalog, checkout, and admin workflow.</td></tr>
+              <tr><td><strong>Checkout control</strong></td><td>Your PHP endpoint verifies product ids, prices, coupons, stock, and payment state.</td><td>Checkout is routed through Shopify's commerce system and account model.</td></tr>
+              <tr><td><strong>Operational shape</strong></td><td>One vanilla JS file plus small PHP endpoints and SQLite.</td><td>A broader hosted workflow with more platform assumptions.</td></tr>
+              <tr><td><strong>Data ownership</strong></td><td>Orders land in your database, with optional signed webhooks and local analytics.</td><td>Order and checkout data follow the hosted product's data model.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="grid grid-3">
+          <div class="cell"><span class="k">USE TINYCART</span><h3>Static site, real cart</h3><p>You already have the product page and want cart UX without adopting a store platform.</p></div>
+          <div class="cell"><span class="k">USE TINYCART</span><h3>Server truth</h3><p>You want every checkout recomputed by your code before an order exists.</p></div>
+          <div class="cell"><span class="k">USE SHOPIFY</span><h3>Hosted workflow</h3><p>Choose Shopify Buy Button when its hosted admin, checkout, fulfillment, and account model are the point.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap callout">
+        <span class="k">NEXT</span>
+        <h2>Compare all options on one page.</h2>
+        <p>See the full matrix for Shopify Buy Button, Snipcart, Gumroad, and Stripe Payment Links.</p>
+        <div class="actions"><a class="btn secondary" href="compare.html">Open compare.html</a></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-inner">
+      <span>Shopify Buy Button alternative notes for TinyCart.</span>
+      <div class="footer-links"><a href="compare.html">compare</a><a href="docs.html">docs</a><a href="security.html">security</a></div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -19,6 +19,15 @@ for (const file of [
   "CHANGELOG.md",
   "package.json",
   "index.html",
+  "site.css",
+  "docs.html",
+  "setup.html",
+  "security.html",
+  "compare.html",
+  "shopify-buy-button-alternative.html",
+  "snipcart-alternative.html",
+  "gumroad-alternative.html",
+  "stripe-payment-links-alternative.html",
   "sample.html",
   "examples/plain-html.html",
   "examples/wordpress-shortcode.php",
@@ -219,8 +228,25 @@ assert.ok(ci.includes("tinycart.js"), "CI should check the TinyCart byte size");
 assert.ok(ci.includes("44000"), "CI should preserve the documented byte-size ceiling");
 
 const index = read("index.html");
+const publicHtmlPages = [
+  "index.html",
+  "docs.html",
+  "setup.html",
+  "security.html",
+  "compare.html",
+  "shopify-buy-button-alternative.html",
+  "snipcart-alternative.html",
+  "gumroad-alternative.html",
+  "stripe-payment-links-alternative.html"
+];
+for (const page of publicHtmlPages) {
+  assert.ok(read(page).includes('rel="icon" type="image/svg+xml"'), `${page} should declare the TinyCart SVG favicon`);
+}
 assert.ok(index.includes("https://github.com/tanzir71/tinycartjs"), "landing should link to GitHub repo");
-assert.ok(index.includes("README.md") && index.includes("SECURITY.md"), "landing should link docs and security");
+for (const page of ["docs.html", "setup.html", "security.html", "compare.html"]) {
+  assert.ok(index.includes(`href="${page}"`), `landing should link to ${page}`);
+}
+assert.doesNotMatch(index, /href="(?:README|SETUP|SECURITY)\.md"/, "landing should not send public docs traffic to Markdown files");
 assert.ok(index.includes("max-width: 760px"), "landing should use a compact hero measure");
 assert.ok(index.includes("clamp(40px, 6.4vw, 72px)"), "landing headline should avoid oversized display text");
 assert.ok(index.includes("clamp(44px, 7vw, 76px)"), "landing sections should keep tighter vertical rhythm");
@@ -230,6 +256,45 @@ assert.ok(heroDiagram, "hero should use the refined TinyCart diagram");
 assert.ok(heroDiagram.includes('vector-effect="non-scaling-stroke"'), "hero diagram should keep crisp non-scaling hairlines");
 assert.doesNotMatch(heroDiagram, /stroke-width="2"/, "hero diagram should avoid thick mockup strokes");
 assert.ok(heroDiagram.includes("TC/CART"), "hero diagram should read as a precise TinyCart schematic");
+
+const siteCss = read("site.css");
+for (const token of ["scrollbar-color: var(--fg) var(--soft)", ".diagram-wrap", ".comparison-table", ".doc-shell"]) {
+  assert.ok(siteCss.includes(token), `site.css should include ${token}`);
+}
+
+const docsHtml = read("docs.html");
+for (const token of ["TinyCart Docs", "data-tc-id", "tinycart.init", "apiCheckout", "catalogUrl", "Developer API"]) {
+  assert.ok(docsHtml.includes(token), `docs.html should include ${token}`);
+}
+assert.ok(docsHtml.includes("setup.html") && docsHtml.includes("security.html") && docsHtml.includes("compare.html"),
+  "docs.html should link setup, security, and comparisons");
+assert.doesNotMatch(docsHtml, /href="README\.md"/, "docs page should not route readers back to README.md");
+
+const setupHtml = read("setup.html");
+for (const token of ["TinyCart Setup", "Namecheap", "public_html/tinycart", ".htaccess", "ALLOWED_ORIGINS"]) {
+  assert.ok(setupHtml.includes(token), `setup.html should include ${token}`);
+}
+
+const securityHtml = read("security.html");
+for (const token of ["TinyCart Security", "server-side price verification", "Content-Security-Policy", "HMAC", "Do not expose"]) {
+  assert.ok(securityHtml.includes(token), `security.html should include ${token}`);
+}
+
+const compareHtml = read("compare.html");
+for (const token of ["TinyCart Compare", "Shopify Buy Button", "Snipcart", "Gumroad", "Stripe Payment Links"]) {
+  assert.ok(compareHtml.includes(token), `compare.html should include ${token}`);
+}
+
+for (const [file, competitor] of [
+  ["shopify-buy-button-alternative.html", "Shopify Buy Button"],
+  ["snipcart-alternative.html", "Snipcart"],
+  ["gumroad-alternative.html", "Gumroad"],
+  ["stripe-payment-links-alternative.html", "Stripe Payment Links"]
+]) {
+  const html = read(file);
+  assert.ok(html.includes(`${competitor} alternative`), `${file} should have a focused alternative title`);
+  assert.ok(html.includes("TinyCart is a better fit") && html.includes("compare.html"), `${file} should link back to the comparison hub`);
+}
 
 assert.ok(js.includes("--tc-bg:#fff"), "cart widget should default to light mode");
 assert.ok(js.includes(".tc-dialog{position:fixed;inset:auto 12px 12px 12px"), "cart modal should use compact mobile spacing");
