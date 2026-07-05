@@ -34,7 +34,9 @@ for (const file of [
   "examples/astro-eleventy.md",
   "examples/react-wrapper.jsx",
   "scripts/minify.mjs",
-  ".github/workflows/ci.yml"
+  ".github/workflows/ci.yml",
+  ".github/workflows/pages.yml",
+  ".nojekyll"
 ]) {
   assert.ok(existsSync(join(root, file)), `${file} should exist`);
 }
@@ -244,7 +246,15 @@ assert.ok(ci.includes("node --test tests/*.test.mjs"), "CI should run the Node t
 assert.ok(ci.includes("node tests/static.test.mjs"), "CI should run static invariants");
 assert.ok(ci.includes("php -l"), "CI should lint PHP files");
 assert.ok(ci.includes("tinycart.js"), "CI should check the TinyCart byte size");
-assert.ok(ci.includes("44000"), "CI should preserve the documented byte-size ceiling");
+assert.ok(ci.includes("48000"), "CI should preserve the documented byte-size ceiling");
+
+const pagesWorkflow = read(".github/workflows/pages.yml");
+assert.ok(pagesWorkflow.includes("actions/configure-pages@v5"), "Pages workflow should configure GitHub Pages");
+assert.ok(pagesWorkflow.includes("actions/upload-pages-artifact@v3"), "Pages workflow should upload a Pages artifact");
+assert.ok(pagesWorkflow.includes("actions/deploy-pages@v5"), "Pages workflow should deploy with the official Pages action");
+assert.ok(pagesWorkflow.includes("touch _site/.nojekyll"), "Pages workflow should bypass Jekyll for the static docs site");
+assert.ok(!pagesWorkflow.includes("checkout.php"), "Pages workflow should not publish server endpoints");
+assert.ok(!pagesWorkflow.includes("tests/"), "Pages workflow should not publish test files");
 
 const index = read("index.html");
 const publicHtmlPages = [
