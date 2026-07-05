@@ -34,6 +34,20 @@ Repository: https://github.com/tanzir71/tinycartjs
 
 TinyCart auto-initializes from `data-tc-config`, stores the cart in `localStorage`, renders a floating cart button, and posts checkout JSON to your backend.
 
+## Architecture at a Glance
+
+TinyCart is split into a small client widget and plain PHP endpoints:
+
+- `tinycart.js` owns the cart UI, `localStorage` persistence, coupon preview calls, catalog hydration, analytics beacons, and checkout POST.
+- `checkout.php` is the source of truth for products, prices, coupons, stock reservation, payment method selection, order storage, webhook delivery, and order email.
+- `coupon.php` gives shoppers fast coupon feedback, but checkout still recomputes the discount before storing an order.
+- `catalog.php` can hydrate client-side product display from the server catalog without trusting the browser during checkout.
+- `payment.php` receives Stripe webhooks or PayPal returns and marks online orders paid after provider verification.
+- `admin.php` is the server-rendered ops dashboard for order status, COD collection, admin notes, stock, coupon overrides, CSV export, and webhook retry.
+- `collect.php` accepts optional cart analytics that should remain operational and non-sensitive.
+
+The client never has final authority over price, total, stock, coupon validity, payment status, or fulfilment status. Treat anything in HTML or JSON from the browser as display data until the PHP endpoint validates it.
+
 ## CDN / Releases
 
 For production, pin a release tag instead of loading from a moving branch:
@@ -104,6 +118,71 @@ JSON inside `data-tc-config` cannot include functions, so use `tinycart.init()` 
 
 Set `locale` to any `Intl.NumberFormat` locale, such as `de-DE` or `ja-JP`, to localize currency display while keeping all amounts as integer cents internally. Use `strings` to override visible widget copy for translation; unspecified keys use the English defaults.
 
+Common configuration fields:
+
+| Field | Where | Purpose |
+| --- | --- | --- |
+| `cartKey` | widget | Names the `localStorage` bucket. Use a stable value per storefront. |
+| `apiCheckout` | widget | Checkout endpoint URL. Required unless you provide `onCheckout`. |
+| `apiCoupon` | widget | Optional coupon preview endpoint. Checkout still validates coupons again. |
+| `catalogUrl` | widget | Optional read-only catalog endpoint for display price/stock hydration. |
+| `analyticsUrl` | widget | Optional event collector for cart and checkout telemetry. |
+| `paymentMethods` | widget | Shopper-visible methods such as `["online","cod"]`. Controls radio rendering only. |
+| `defaultPaymentMethod` | widget | Initial selected method when more than one method is configured. |
+| `apiKey` | widget | Public endpoint key sent as `X-API-KEY` when endpoint constants require it. |
+| `allowedOptionKeys` | widget | Optional allowlist for variant keys such as `size`, `color`, or `finish`. |
+
+## Checkout Payload and Response
+
+The widget sends a compact JSON payload. The browser values are useful for UX and audit context, but checkout recomputes the money fields from `PRODUCT_CATALOG` and `COUPONS`.
+
+```json
+{
+  "cartKey": "store-1",
+  "currency": "USD",
+  "paymentMethod": "cod",
+  "customer": {
+    "name": "Ada Lovelace",
+    "phone": "+15551234567",
+    "email": "ada@example.com",
+    "address": "1 Byte Lane"
+  },
+  "cart": {
+    "items": [
+      {
+        "id": "tee-001",
+        "name": "TinyCart Tee",
+        "priceCents": 2400,
+        "qty": 1,
+        "options": { "size": "M", "color": "Black" }
+      }
+    ],
+    "totals": { "subtotalCents": 2400 }
+  },
+  "page": "https://store.example/products/tee",
+  "createdAt": "2026-07-05T12:00:00.000Z"
+}
+```
+
+Successful checkout returns the stored order id, server totals, and payment handoff state:
+
+```json
+{
+  "ok": true,
+  "order_id": "T20260705ABC123",
+  "pay_url": null,
+  "subtotal_cents": 2400,
+  "discount_cents": 0,
+  "total_cents": 2400,
+  "coupon_code": null,
+  "payment_method": "cod",
+  "payment_status": "cod_due",
+  "payment_provider": null
+}
+```
+
+When `payment_method` is `online` and Stripe or PayPal is configured, `pay_url` is the provider URL and `tinycart.js` redirects there after clearing the cart. COD and manual orders return `pay_url: null`.
+
 ## Developer API
 
 - `tinycart.init(config)`: initializes or re-initializes the widget.
@@ -147,6 +226,37 @@ By default TinyCart keeps legacy behavior: if no `paymentMethod` is sent and `PA
 To show shopper choices, set `ENABLED_PAYMENT_METHODS` in `checkout.php`, for example `['online', 'cod']`, and set the widget config to `paymentMethods: ["online", "cod"]`. `DEFAULT_PAYMENT_METHOD` and `defaultPaymentMethod` choose the initially selected option. The widget renders radio controls only when more than one method is configured.
 
 Cash on Delivery orders skip Stripe/PayPal handoff. Checkout stores `payment_method: cod`, `payment_provider: cod`, and `payment_status: cod_due`; the response has no `pay_url`. In the admin dashboard, use **Cash collected** to mark COD orders paid and set `paid_at`.
+
+## Status Reference
+
+Payment methods:
+
+| Method | Meaning |
+| --- | --- |
+| `online` | Shopper should pay through Stripe or PayPal. Requires `PAYMENT_PROVIDER`. |
+| `cod` | Shopper will pay in cash on delivery or pickup. No provider redirect is created. |
+| `manual` | Order is accepted for offline/manual settlement without COD-specific collection state. |
+
+Payment statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `pending` | Order is created but no verified online payment or manual paid mark exists yet. |
+| `cod_due` | COD order is waiting for cash collection. |
+| `paid` | Payment has been verified, captured, or marked collected by an operator. |
+| `cancelled` | Order should no longer be fulfilled. Inventory is not automatically restored. |
+| `refunded` | Payment was returned outside TinyCart. Use provider records as financial truth. |
+
+Fulfilment statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `new` | Order was just created and needs operator review. |
+| `confirmed` | Customer/contact/order details are accepted. |
+| `packed` | Items are prepared for pickup, courier, or shipment. |
+| `shipped` | Order has left the shop or warehouse. |
+| `fulfilled` | Order is complete. |
+| `cancelled` | Fulfilment work has stopped. |
 
 ## Payment Handoff
 
@@ -199,6 +309,16 @@ Upload `admin.php` for a minimal ops dashboard backed by `data/orders.sqlite`. I
 
 The dashboard lists and filters orders, opens order detail, updates payment and fulfilment status, stores admin notes, marks COD cash collected, updates stock, toggles coupon overrides, exports the filtered order list as CSV, and queues webhook retries. All write forms require auth plus a PHP session CSRF token.
 
+Recommended daily flow:
+
+1. Filter `payment_status = cod_due` and call or WhatsApp customers whose orders need confirmation.
+2. Move accepted orders from `new` to `confirmed`, then to `packed` or `shipped` as your fulfilment process advances.
+3. Use **Cash collected** only after cash is actually received; this sets `payment_status = paid` and fills `paid_at`.
+4. Add short admin notes for courier attempts, substitution decisions, or customer changes.
+5. Export CSV for courier handoff or accounting after filtering the list you want. Formula-like cells are prefixed before export for spreadsheet safety.
+6. Check Webhook health for failed deliveries and use **Retry now** after the downstream endpoint is healthy.
+7. Update inventory from the dashboard after restock. Existing inventory rows are intentionally not overwritten by PHP constants.
+
 ## Sample Product Buttons
 
 ```html
@@ -231,6 +351,21 @@ const sig = crypto.createHmac("sha256", process.env.TINYCART_HMAC_SECRET)
 ```
 
 Render `data-tc-exp` and `data-tc-sig` on the product button. TinyCart preserves them in the checkout payload. `checkout.php` verifies them with `hash_hmac()` and `hash_equals()`.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Check |
+| --- | --- | --- |
+| `Origin not allowed` | The browser origin is missing from an endpoint allowlist. | Add the exact scheme, host, and port to `ALLOWED_ORIGINS`, `COUPON_ALLOWED_ORIGINS`, `CATALOG_ALLOWED_ORIGINS`, or `COLLECT_ALLOWED_ORIGINS`. |
+| `Unauthorized` | Endpoint `API_KEYS` are configured but the widget is not sending the matching `apiKey`. | Set `apiKey` in `data-tc-config` or remove endpoint keys while developing. |
+| `price mismatch` | HTML price, catalog endpoint, and `PRODUCT_CATALOG` disagree. | Update product constants first, then refresh catalog-hydrated pages. |
+| `Out of stock` | The SQLite `inventory` row cannot reserve the requested quantity. | Restock through `admin.php` or inspect `data/orders.sqlite`. |
+| Coupon previews but checkout ignores it | `coupon.php` and `checkout.php` coupon constants or override state differ. | Keep `COUPONS` in sync and check `coupon_overrides` in admin. |
+| COD option is not shown | Only one or zero methods are configured in the widget. | Set both PHP `ENABLED_PAYMENT_METHODS` and widget `paymentMethods`. |
+| Online checkout says unavailable | `paymentMethod` is `online` but `PAYMENT_PROVIDER` is blank. | Configure Stripe/PayPal constants or remove `online` from enabled methods. |
+| Admin says access is not configured | `ADMIN_API_KEYS` and `ADMIN_PASSWORD_HASH` are both blank. | Configure one auth method before exposing `admin.php`. |
+| SQLite cannot write | `data/` permissions or ownership are wrong on shared hosting. | Create `data/`, protect it, and make it writable by the PHP user. |
+| GitHub Pages deploys the wrong files | Pages is using legacy branch publishing instead of the dedicated workflow. | Switch Pages build type to GitHub Actions and keep `.nojekyll` in the artifact. |
 
 ## Security Note
 

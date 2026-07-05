@@ -42,9 +42,12 @@
           <a href="#quick-start">Quick start</a>
           <a href="#attributes">Product attributes</a>
           <a href="#configuration">Configuration</a>
+          <a href="#payload">Checkout payload</a>
           <a href="#shopping-flows">Shopping flows</a>
+          <a href="#statuses">Status reference</a>
           <a href="#api">Developer API</a>
           <a href="#server">Server endpoints</a>
+          <a href="#troubleshooting">Troubleshooting</a>
           <a href="#theme">Theme tokens</a>
         </aside>
 
@@ -103,6 +106,48 @@
     body: JSON.stringify(payload)
   }).then((res) =&gt; res.json())
 });</pre>
+            <div class="table-wrap">
+              <table class="comparison-table">
+                <thead><tr><th>Field</th><th>Use</th><th>Notes</th></tr></thead>
+                <tbody>
+                  <tr><td><code>cartKey</code></td><td>Names stored cart data.</td><td>Use one stable key per storefront.</td></tr>
+                  <tr><td><code>apiCheckout</code></td><td>Checkout POST target.</td><td>Required unless <code>onCheckout</code> handles the request.</td></tr>
+                  <tr><td><code>apiCoupon</code></td><td>Coupon preview endpoint.</td><td>Checkout still validates coupons again.</td></tr>
+                  <tr><td><code>catalogUrl</code></td><td>Server catalog hydration.</td><td>Improves display accuracy; checkout remains final truth.</td></tr>
+                  <tr><td><code>paymentMethods</code></td><td>Visible shopper choices.</td><td>Radio controls render only when multiple methods are configured.</td></tr>
+                  <tr><td><code>apiKey</code></td><td>Optional endpoint key.</td><td>Sent as <code>X-API-KEY</code>; never use a secret admin key here.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="payload">
+            <span class="idx">PAYLOAD</span>
+            <h2>Checkout payload and response</h2>
+            <p>The widget sends customer, cart, page, and payment-method context. <code>checkout.php</code> treats browser prices and totals as hints, then recomputes money and stock from the server catalog before storing the order.</p>
+            <pre class="pre-block">{
+  "cartKey": "store-1",
+  "currency": "USD",
+  "paymentMethod": "cod",
+  "customer": {
+    "name": "Ada Lovelace",
+    "phone": "+15551234567",
+    "email": "ada@example.com",
+    "address": "1 Byte Lane"
+  },
+  "cart": {
+    "items": [{
+      "id": "tee-001",
+      "name": "TinyCart Tee",
+      "priceCents": 2400,
+      "qty": 1,
+      "options": { "size": "M" }
+    }],
+    "totals": { "subtotalCents": 2400 }
+  },
+  "page": "https://store.example/products/tee"
+}</pre>
+            <p>Successful responses include <code>order_id</code>, server totals, <code>payment_method</code>, <code>payment_status</code>, and optional <code>pay_url</code>. COD and manual orders return <code>pay_url:null</code>; online orders redirect to Stripe or PayPal when configured.</p>
           </section>
 
           <section id="shopping-flows">
@@ -116,6 +161,28 @@
               <div class="cell"><h3>Shipping, tax, refunds</h3><p>Shipping rates, tax calculation, refunds, returns, subscriptions, and customer-service flows are intentionally bring-your-own. Add them in your backend, payment provider dashboard, or existing operations tool.</p></div>
               <div class="cell"><h3>Inventory and coupons</h3><p><code>catalog.php</code> can hydrate display data, <code>coupon.php</code> can preview discounts, and <code>admin.php</code> can update stock or toggle coupon overrides. Checkout still revalidates all product, price, coupon, total, and stock data.</p></div>
               <div class="cell"><h3>Notifications and analytics</h3><p><code>WEBHOOK_URL</code> receives a signed PII-free order summary for integrations. <code>ORDER_EMAIL_TO</code> sends a simple plaintext order email. <code>collect.php</code> can record optional cart events without customer contact details.</p></div>
+            </div>
+          </section>
+
+          <section id="statuses">
+            <span class="idx">STATUS</span>
+            <h2>Status reference</h2>
+            <p>Statuses are intentionally small so operators can run a shop without learning a full commerce platform.</p>
+            <div class="table-wrap">
+              <table class="comparison-table">
+                <thead><tr><th>Field</th><th>Value</th><th>Meaning</th></tr></thead>
+                <tbody>
+                  <tr><td>Payment method</td><td><code>online</code></td><td>Stripe or PayPal handoff is expected.</td></tr>
+                  <tr><td>Payment method</td><td><code>cod</code></td><td>Cash is collected at delivery or pickup.</td></tr>
+                  <tr><td>Payment method</td><td><code>manual</code></td><td>Offline settlement without COD-specific collection state.</td></tr>
+                  <tr><td>Payment status</td><td><code>pending</code></td><td>Payment has not been verified or marked collected.</td></tr>
+                  <tr><td>Payment status</td><td><code>cod_due</code></td><td>COD cash is still due.</td></tr>
+                  <tr><td>Payment status</td><td><code>paid</code></td><td>Provider verification, capture, or cash collection is complete.</td></tr>
+                  <tr><td>Fulfilment</td><td><code>new</code></td><td>Operator has not reviewed the order yet.</td></tr>
+                  <tr><td>Fulfilment</td><td><code>confirmed</code></td><td>Order details are accepted and ready to prepare.</td></tr>
+                  <tr><td>Fulfilment</td><td><code>packed</code>, <code>shipped</code>, <code>fulfilled</code></td><td>Use these as the order moves through your own delivery process.</td></tr>
+                </tbody>
+              </table>
             </div>
           </section>
 
@@ -133,11 +200,37 @@
           <section id="server">
             <span class="idx">SERVER</span>
             <h2>Server endpoints</h2>
-            <p><code>checkout.php</code> validates origins, rate limits requests, recomputes totals, reserves inventory, stores the order, supports COD/manual/online payment methods, and can hand off to Stripe or PayPal. Optional endpoints add coupons, catalog hydration, analytics collection, payment webhook handling, and an authenticated ops dashboard for order status, COD collection, stock, coupon overrides, CSV export, and webhook retry.</p>
+            <p>The PHP files are independent so shared hosting stays simple. Enable only the endpoints your store uses.</p>
+            <div class="table-wrap">
+              <table class="comparison-table">
+                <thead><tr><th>Endpoint</th><th>Responsibility</th><th>Data written</th></tr></thead>
+                <tbody>
+                  <tr><td><code>checkout.php</code></td><td>Origin checks, rate limits, totals, coupons, inventory reservation, order storage, COD/manual/online payment selection.</td><td><code>orders.sqlite</code>, webhook queue, error log.</td></tr>
+                  <tr><td><code>coupon.php</code></td><td>Fast coupon preview with rate limits and override awareness.</td><td>Coupon rate-limit buckets.</td></tr>
+                  <tr><td><code>catalog.php</code></td><td>Read-only product name, price, currency, and stock hydration.</td><td>None.</td></tr>
+                  <tr><td><code>payment.php</code></td><td>Stripe webhook verification or PayPal return capture.</td><td>Updates payment status and provider metadata.</td></tr>
+                  <tr><td><code>admin.php</code></td><td>Authenticated order ops, notes, statuses, stock, coupon overrides, CSV export, webhook retry.</td><td>Order/admin tables in <code>orders.sqlite</code>.</td></tr>
+                  <tr><td><code>collect.php</code></td><td>Optional analytics beacons for cart and checkout events.</td><td><code>collect.sqlite</code>.</td></tr>
+                </tbody>
+              </table>
+            </div>
             <div class="actions">
               <a class="btn secondary" href="setup.html">Setup guide</a>
               <a class="btn secondary" href="security.html">Security guide</a>
               <a class="btn secondary" href="compare.html">Comparison pages</a>
+            </div>
+          </section>
+
+          <section id="troubleshooting">
+            <span class="idx">FIXES</span>
+            <h2>Troubleshooting</h2>
+            <div class="grid grid-2">
+              <div class="cell"><h3>Origin not allowed</h3><p>Add the exact browser origin, including scheme and port, to the relevant PHP allowlist.</p></div>
+              <div class="cell"><h3>Price mismatch</h3><p>Synchronize HTML, <code>catalog.php</code>, and <code>PRODUCT_CATALOG</code>. Checkout rejects stale client totals.</p></div>
+              <div class="cell"><h3>Coupon ignored at checkout</h3><p>Keep coupon constants aligned and check whether admin coupon overrides have disabled the code.</p></div>
+              <div class="cell"><h3>COD option missing</h3><p>Set both PHP <code>ENABLED_PAYMENT_METHODS</code> and widget <code>paymentMethods</code>. Single-method stores hide radios.</p></div>
+              <div class="cell"><h3>Admin disabled</h3><p>Configure <code>ADMIN_API_KEYS</code> or <code>ADMIN_PASSWORD_HASH</code>. The dashboard is closed when both are blank.</p></div>
+              <div class="cell"><h3>SQLite cannot write</h3><p>Check <code>data/</code> ownership and permissions. Prefer a private directory outside public web root when available.</p></div>
             </div>
           </section>
 

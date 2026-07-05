@@ -203,6 +203,9 @@ assert.ok(readme.includes("data-tc-id"), "README should document product buttons
 assert.ok(readme.includes("img.shields.io"), "README should include a release/status badge");
 assert.ok(readme.includes("cdn.jsdelivr.net/gh/tanzir71/tinycartjs"), "README should document jsDelivr usage");
 assert.ok(readme.includes("tinycart.min.js"), "README should document the optional minified build");
+for (const token of ["Architecture at a Glance", "Checkout Payload and Response", "Status Reference", "Recommended daily flow", "Troubleshooting"]) {
+  assert.ok(readme.includes(token), `README should include detailed docs for ${token}`);
+}
 
 const changelog = read("CHANGELOG.md");
 assert.ok(changelog.includes("## 0.2.0 - 2026-07-04"), "CHANGELOG should include the current release entry");
@@ -240,6 +243,9 @@ assert.ok(security.includes("Content-Security-Policy"), "SECURITY should include
 const setup = read("SETUP.md");
 assert.ok(setup.includes("Namecheap"), "SETUP should include shared hosting instructions");
 assert.ok(setup.includes(".htaccess"), "SETUP should include .htaccess guidance");
+for (const token of ["Recommended File Layout", "Endpoint Configuration Details", "Daily operator runbook", "Suggested status meanings", "Troubleshooting"]) {
+  assert.ok(setup.includes(token), `SETUP should include detailed setup docs for ${token}`);
+}
 
 const ci = read(".github/workflows/ci.yml");
 assert.ok(ci.includes("node --test tests/*.test.mjs"), "CI should run the Node test suite");
@@ -307,11 +313,15 @@ for (const token of ["TinyCart Docs", "data-tc-id", "tinycart.init", "apiCheckou
   assert.ok(docsHtml.includes(token), `docs.html should include ${token}`);
 }
 for (const token of [
+  "Checkout payload and response",
   "Shopping cart flows",
+  "Status reference",
   "Payment flow",
   "Order records",
   "Fulfilment is manual",
   "Shipping, tax, refunds",
+  "Server endpoints",
+  "Troubleshooting",
   "webhook",
   "ORDER_EMAIL_TO"
 ]) {
@@ -322,7 +332,7 @@ assert.ok(docsHtml.includes("setup.html") && docsHtml.includes("security.html") 
 assert.doesNotMatch(docsHtml, /href="README\.md"/, "docs page should not route readers back to README.md");
 
 const setupHtml = read("setup.html");
-for (const token of ["TinyCart Setup", "Namecheap", "public_html/tinycart", ".htaccess", "ALLOWED_ORIGINS"]) {
+for (const token of ["TinyCart Setup", "Namecheap", "public_html/tinycart", ".htaccess", "ALLOWED_ORIGINS", "Recommended file layout", "Go-live checks", "Troubleshooting", "Webhook retries"]) {
   assert.ok(setupHtml.includes(token), `setup.html should include ${token}`);
 }
 

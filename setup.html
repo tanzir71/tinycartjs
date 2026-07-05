@@ -51,10 +51,13 @@
       <div class="wrap doc-shell">
         <aside class="doc-side" aria-label="Setup sections">
           <a href="#requirements">Requirements</a>
+          <a href="#layout">File layout</a>
           <a href="#files">Files</a>
           <a href="#ops">COD and ops</a>
+          <a href="#checks">Go-live checks</a>
           <a href="#permissions">Permissions</a>
           <a href="#embed">Merchant embed</a>
+          <a href="#troubleshooting">Troubleshooting</a>
           <a href="#node">Node hosting</a>
         </aside>
         <div class="doc-content">
@@ -64,7 +67,25 @@
               <li>PHP 8.1 or newer is recommended.</li>
               <li><code>pdo_sqlite</code> and <code>json</code> are required. <code>mbstring</code> is recommended.</li>
               <li>A writable private <code>data/</code> folder is required for SQLite, logs, rate limits, and queues.</li>
+              <li>Use HTTPS before collecting real customer contact details or payment redirects.</li>
             </ul>
+          </section>
+          <section id="layout">
+            <h2>Recommended file layout</h2>
+            <p>Keep public endpoints in your storefront folder and protect the writable data directory. If your host allows private folders outside <code>public_html</code>, put <code>data/</code> there and update the path constants.</p>
+            <pre class="pre-block">public_html/
+  index.html
+  tinycart/
+    tinycart.js
+    checkout.php
+    coupon.php
+    catalog.php
+    payment.php
+    admin.php
+    collect.php
+    data/
+      .htaccess
+      orders.sqlite</pre>
           </section>
           <section id="files">
             <h2>Configure the PHP files</h2>
@@ -74,10 +95,55 @@ API_KEYS = ["long-random-public-endpoint-key"]
 HMAC_SECRET = "server-only-secret"
 PAYMENT_PROVIDER = "stripe" // or "paypal", or blank
 ENABLED_PAYMENT_METHODS = ["online", "cod"]</pre>
+            <div class="table-wrap">
+              <table class="comparison-table">
+                <thead><tr><th>File</th><th>Important constants</th><th>When to edit</th></tr></thead>
+                <tbody>
+                  <tr><td><code>checkout.php</code></td><td>Catalog, coupons, payment methods, webhook, email.</td><td>Always. This is the order source of truth.</td></tr>
+                  <tr><td><code>coupon.php</code></td><td>Coupon rules, origins, optional API keys.</td><td>When shoppers preview coupon discounts.</td></tr>
+                  <tr><td><code>catalog.php</code></td><td>Catalog rows and allowed origins.</td><td>When pages hydrate product display from the server.</td></tr>
+                  <tr><td><code>payment.php</code></td><td>Stripe webhook secret or PayPal credentials.</td><td>Only for online payments.</td></tr>
+                  <tr><td><code>admin.php</code></td><td>Admin auth, product stock labels, coupon labels.</td><td>When using the ops dashboard.</td></tr>
+                  <tr><td><code>collect.php</code></td><td>Analytics origins, keys, rate limits.</td><td>Only when collecting cart telemetry.</td></tr>
+                </tbody>
+              </table>
+            </div>
           </section>
           <section id="ops">
             <h2>COD and ops dashboard</h2>
             <p>COD orders skip Stripe and PayPal, store <code>payment_status</code> as <code>cod_due</code>, and stay visible in <code>admin.php</code> until an operator marks cash collected. After setting admin auth, use the dashboard to filter orders, update payment and fulfilment status, edit stock, toggle coupon overrides, export CSV, and queue webhook retries.</p>
+            <ol>
+              <li>Filter for <code>cod_due</code> or <code>new</code> orders at the start of the day.</li>
+              <li>Open each order detail, verify contact/address/items, and call or WhatsApp the customer when needed.</li>
+              <li>Move fulfilment through <code>confirmed</code>, <code>packed</code>, <code>shipped</code>, and <code>fulfilled</code>.</li>
+              <li>Press <strong>Cash collected</strong> only after cash is received.</li>
+              <li>Export CSV after filtering the route, date, status, or payment method you want.</li>
+            </ol>
+            <div class="table-wrap">
+              <table class="comparison-table">
+                <thead><tr><th>Status</th><th>Use it when</th></tr></thead>
+                <tbody>
+                  <tr><td><code>pending</code></td><td>Online or manual payment is not verified yet.</td></tr>
+                  <tr><td><code>cod_due</code></td><td>COD cash is still due.</td></tr>
+                  <tr><td><code>paid</code></td><td>Provider payment is verified or COD cash is collected.</td></tr>
+                  <tr><td><code>new</code></td><td>The order still needs operator review.</td></tr>
+                  <tr><td><code>confirmed</code></td><td>The order is accepted and ready to prepare.</td></tr>
+                  <tr><td><code>fulfilled</code></td><td>The order is complete.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section id="checks">
+            <h2>Go-live checks</h2>
+            <p>Before switching traffic to real orders, complete one end-to-end pass for each enabled payment method.</p>
+            <ul>
+              <li>Place a no-discount order and confirm the order row, line items, totals, and inventory decrement.</li>
+              <li>Preview a valid coupon through <code>coupon.php</code>, then complete checkout and confirm the stored discount.</li>
+              <li>Place a COD order and mark <strong>Cash collected</strong> in admin.</li>
+              <li>If online payments are enabled, verify the provider redirect and paid callback path with sandbox credentials.</li>
+              <li>Trigger a failed webhook once, then use <strong>Retry now</strong> after the receiver is healthy.</li>
+              <li>Download a CSV export and confirm formula-like customer cells are prefixed for spreadsheet safety.</li>
+            </ul>
           </section>
           <section id="permissions">
             <h2>Protect data and logs</h2>
@@ -91,6 +157,17 @@ ENABLED_PAYMENT_METHODS = ["online", "cod"]</pre>
   src="/tinycart/tinycart.js"
   data-tc-config='{"cartKey":"store-1","currency":"USD","apiCheckout":"/tinycart/checkout.php","apiCoupon":"/tinycart/coupon.php","catalogUrl":"/tinycart/catalog.php","analyticsUrl":"/tinycart/collect.php","paymentMethods":["online","cod"],"defaultPaymentMethod":"cod"}'&gt;
 &lt;/script&gt;</pre>
+          </section>
+          <section id="troubleshooting">
+            <h2>Troubleshooting</h2>
+            <div class="grid grid-2">
+              <div class="cell"><h3>Origin errors</h3><p>Use exact origins in every endpoint. <code>https://store.example</code> and <code>https://www.store.example</code> are different.</p></div>
+              <div class="cell"><h3>API key errors</h3><p>If endpoint keys are configured, the widget must send the same public key through <code>apiKey</code>.</p></div>
+              <div class="cell"><h3>SQLite write failures</h3><p>Check ownership and permissions for <code>data/</code>. Avoid world-writable folders.</p></div>
+              <div class="cell"><h3>Coupon drift</h3><p>Keep <code>COUPONS</code> aligned in <code>checkout.php</code> and <code>coupon.php</code>, then check admin overrides.</p></div>
+              <div class="cell"><h3>Missing payment redirect</h3><p><code>online</code> requires <code>PAYMENT_PROVIDER</code>, provider credentials, and success/cancel URLs.</p></div>
+              <div class="cell"><h3>Webhook retries</h3><p>Fix the downstream URL or signature handler first, then queue retry from Webhook health.</p></div>
+            </div>
           </section>
           <section id="node">
             <h2>Common Node hosting</h2>

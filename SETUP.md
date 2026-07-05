@@ -7,6 +7,32 @@ These steps target Namecheap/cPanel-style shared hosting with PHP, including COD
 - PHP 8.1+ recommended.
 - PHP extensions: `pdo_sqlite` and `json` required; `mbstring` recommended.
 - Writable private `data/` directory for SQLite, logs, rate-limit buckets, and queued webhook or analytics records.
+- HTTPS on the storefront origin is strongly recommended before real customer data is collected.
+- Access to cPanel File Manager, SSH, or another file-permission tool is needed for protecting `data/`.
+
+## Recommended File Layout
+
+The simplest shared-hosting layout keeps TinyCart beside the storefront assets:
+
+```text
+public_html/
+  index.html
+  product-page.html
+  tinycart/
+    tinycart.js
+    checkout.php
+    coupon.php
+    catalog.php
+    payment.php
+    admin.php
+    collect.php
+    data/
+      .htaccess
+      orders.sqlite
+      collect.sqlite
+```
+
+If your host allows directories outside `public_html`, place `data/` outside web root and change `DB_PATH`, `RATE_LIMIT_DIR`, and log constants to point there. If `data/` must stay under the public folder, protect it with `.htaccess` before accepting orders.
 
 ## Upload
 
@@ -41,6 +67,8 @@ These steps target Namecheap/cPanel-style shared hosting with PHP, including COD
    - Add long random `COLLECT_API_KEYS` if you configure `apiKey` in TinyCart.
    - Tune `COLLECT_RATE_MAX_REQUESTS` and `COLLECT_RATE_WINDOW_SECONDS` for your traffic.
 
+Before going live, run one test order with each enabled payment method, then open `admin.php` and confirm the order row, line items, status badges, inventory decrement, coupon handling, and webhook health panel all reflect the expected state.
+
 Recommended permissions:
 
 ```bash
@@ -56,6 +84,31 @@ chmod 640 public_html/tinycart/data/collect_errors.log
 ```
 
 If cPanel runs PHP as your user, `750`/`640` usually works. If SQLite cannot write, use cPanel File Manager to make `data/` writable by the account owner, not world-writable.
+
+## Endpoint Configuration Details
+
+Use exact origins everywhere. Include the scheme and host, and include the port for local development:
+
+```php
+const ALLOWED_ORIGINS = [
+    'https://store.example',
+    'https://www.store.example',
+    'http://127.0.0.1:8000',
+];
+```
+
+Keep these constants aligned across files:
+
+| File | Constants to review | Notes |
+| --- | --- | --- |
+| `checkout.php` | `PRODUCT_CATALOG`, `COUPONS`, `ENABLED_PAYMENT_METHODS`, `PAYMENT_PROVIDER`, `WEBHOOK_URL`, `ORDER_EMAIL_TO` | Checkout is the final authority for money, stock, payment method, and order creation. |
+| `coupon.php` | `COUPONS`, `COUPON_ALLOWED_ORIGINS`, `COUPON_API_KEYS` | Coupon preview should match checkout, but checkout still recomputes everything. |
+| `catalog.php` | `PRODUCT_CATALOG`, `CATALOG_ALLOWED_ORIGINS` | Catalog hydration improves display accuracy; it does not replace checkout validation. |
+| `payment.php` | `STRIPE_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET` | Only needed when online payments are enabled. |
+| `admin.php` | `ADMIN_ALLOWED_ORIGINS`, `ADMIN_API_KEYS`, `ADMIN_PASSWORD_HASH`, `ADMIN_PRODUCT_CATALOG`, `ADMIN_COUPONS` | Admin catalog/coupon lists should mirror checkout so operators see the right stock and toggles. |
+| `collect.php` | `COLLECT_ALLOWED_ORIGINS`, `COLLECT_API_KEYS`, rate limits | Analytics should not receive secrets or unnecessary customer PII. |
+
+Generate secrets with your password manager or a local command such as `openssl rand -hex 32`. Do not reuse `HMAC_SECRET`, API keys, webhook secrets, or admin passwords.
 
 ## SQLite
 
@@ -84,6 +137,15 @@ Then mirror those choices in the widget:
 
 COD orders are stored with `payment_method = cod`, `payment_provider = cod`, and `payment_status = cod_due`. Use the admin order detail button labeled `Cash collected` after the courier or shop operator receives cash; this sets the order to `paid` and records `paid_at`.
 
+For COD-only stores, leave `PAYMENT_PROVIDER` blank and use:
+
+```php
+const ENABLED_PAYMENT_METHODS = ['cod'];
+const DEFAULT_PAYMENT_METHOD = 'cod';
+```
+
+With a single configured payment method, the widget does not render radio controls. Checkout still stores the method and status.
+
 ## Ops Dashboard Flow
 
 Open `admin.php` after configuring auth. The dashboard supports:
@@ -99,6 +161,33 @@ Open `admin.php` after configuring auth. The dashboard supports:
 All POST actions use the same admin auth plus a PHP session CSRF token. Allowed statuses are intentionally small: payment `pending`, `paid`, `cod_due`, `cancelled`, `refunded`; fulfilment `new`, `confirmed`, `packed`, `shipped`, `fulfilled`, `cancelled`.
 
 If SQLite is unavailable on your hosting plan, use a protected file log fallback: change `storeOrder()` to append validated orders as JSON lines to `data/orders.jsonl` with `flock()`. Keep the same validation steps before writing.
+
+Daily operator runbook:
+
+1. Open the order list and filter for `payment_status = cod_due` or `fulfillment_status = new`.
+2. Open each new order, verify customer contact, address, items, coupon, total, and payment method.
+3. Use the phone or WhatsApp link if the customer needs confirmation before packing.
+4. Move the fulfilment status forward as work happens: `confirmed`, `packed`, `shipped`, then `fulfilled`.
+5. For COD, press **Cash collected** only after the courier/shop receives cash.
+6. Use admin notes for delivery attempts, customer requests, or stock substitutions.
+7. Export a filtered CSV for courier routes, accounting, or daily reconciliation.
+8. Check Webhook health and retry failed deliveries after the downstream service is back.
+
+Suggested status meanings:
+
+| Field | Value | Operator meaning |
+| --- | --- | --- |
+| Payment | `pending` | Awaiting online confirmation or manual payment review. |
+| Payment | `cod_due` | Cash should still be collected. |
+| Payment | `paid` | Payment was verified or collected. |
+| Payment | `cancelled` | Stop fulfilment. |
+| Payment | `refunded` | Payment was returned outside TinyCart. |
+| Fulfilment | `new` | Not reviewed yet. |
+| Fulfilment | `confirmed` | Accepted and ready to prepare. |
+| Fulfilment | `packed` | Items are prepared. |
+| Fulfilment | `shipped` | With courier or in transit. |
+| Fulfilment | `fulfilled` | Complete. |
+| Fulfilment | `cancelled` | Do not continue fulfilment. |
 
 ## Protect Data and Logs
 
@@ -151,6 +240,22 @@ Place product buttons anywhere on your site, then include:
 ```
 
 If your checkout or collect endpoint is on another subdomain, add that origin to your CSP `connect-src`, `ALLOWED_ORIGINS`, and `COLLECT_ALLOWED_ORIGINS`.
+
+## Troubleshooting
+
+| Problem | What to inspect |
+| --- | --- |
+| Checkout returns `Origin not allowed` | The request origin must exactly match `ALLOWED_ORIGINS`, including `https://` and any port. |
+| Checkout returns `Unauthorized` | `API_KEYS` is non-empty but the widget config lacks the matching `apiKey`. |
+| Checkout returns `price mismatch` | The page HTML, catalog endpoint, and `PRODUCT_CATALOG` are out of sync. Refresh cached pages after changing products. |
+| Checkout returns `Out of stock` | The SQLite `inventory` table has less stock than the cart asks for. Restock in admin or inspect `data/orders.sqlite`. |
+| Coupon preview works but final checkout has no discount | `coupon.php`, `checkout.php`, or the `coupon_overrides` table disagree. Checkout is the final authority. |
+| Admin dashboard says access is disabled | Set either `ADMIN_API_KEYS` or `ADMIN_PASSWORD_HASH`; leave neither blank in production. |
+| Admin POST returns `403` | The session CSRF token is missing or stale. Reload the dashboard and submit again. |
+| Stripe or PayPal redirect is missing | `paymentMethod` is `online`, `PAYMENT_PROVIDER` is set, and provider credentials plus success/cancel URLs must all be valid. |
+| Webhooks fail repeatedly | Check `WEBHOOK_URL`, `WEBHOOK_SECRET`, downstream availability, and TLS. Retry from Webhook health after fixing the receiver. |
+| SQLite files are downloaded by URL | `data/.htaccess` is missing or ignored. Move `data/` outside public web root if possible. |
+| GitHub Pages deploys PHP/tests/docs internals | Use the included Pages workflow, keep `.nojekyll`, and configure Pages to deploy from GitHub Actions instead of legacy branch publishing. |
 
 ## Common Node Hosting
 
