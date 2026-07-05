@@ -80,7 +80,7 @@ for (const forbidden of ["innerHTML", "insertAdjacentHTML", "eval(", "new Functi
   assert.ok(!js.includes(forbidden), `tinycart.js should not contain ${forbidden}`);
 }
 // Raised deliberately for opt-in catalogUrl hydration and i18n strings while keeping TinyCart small.
-assert.ok(js.length < 44_000, "tinycart.js should stay compact enough for the MVP");
+assert.ok(js.length < 48_000, "tinycart.js should stay compact enough for the MVP");
 
 const php = read("checkout.php");
 for (const token of [
@@ -94,8 +94,12 @@ for (const token of [
   "PRODUCT_CATALOG",
   "COUPONS",
   "PAYMENT_PROVIDER",
+  "ENABLED_PAYMENT_METHODS",
+  "DEFAULT_PAYMENT_METHOD",
   "createPaymentHandoff",
+  "payment_method",
   "payment_status",
+  "fulfillment_status",
   "inventory",
   "reserveInventory",
   "WEBHOOK_URL",
@@ -114,6 +118,8 @@ for (const token of [
   "COUPON_ALLOWED_ORIGINS",
   "COUPON_API_KEYS",
   "COUPONS",
+  "couponOverrideActive",
+  "coupon_overrides",
   "couponRateLimit",
   "discount_cents",
   "Access-Control-Allow-Origin: "
@@ -150,7 +156,19 @@ for (const token of [
   "ADMIN_ALLOWED_ORIGINS",
   "ADMIN_PASSWORD_HASH",
   "ADMIN_API_KEYS",
+  "requireAdminCsrf",
+  "adminCsrfToken",
   "fetchAdminOrders",
+  "updateAdminOrderStatus",
+  "markAdminCodCollected",
+  "updateAdminInventoryStock",
+  "setAdminCouponOverride",
+  "retryAdminWebhook",
+  "renderAdminCsv",
+  "coupon_overrides",
+  "webhook_deliveries",
+  "Fulfillment",
+  "Cash collected",
   "renderAdminPage",
   "htmlspecialchars",
   "Access-Control-Allow-Origin: "
@@ -158,7 +176,8 @@ for (const token of [
   assert.ok(admin.includes(token), `admin.php should include ${token}`);
 }
 assert.ok(!admin.includes("Access-Control-Allow-Origin: *"), "admin.php should not allow wildcard CORS");
-assert.ok(!/(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE TABLE|exec\s*\()/i.test(admin), "admin.php should stay read-only");
+assert.ok(!/(DROP|exec\s*\()/i.test(admin), "admin.php should avoid destructive SQL and shell execution");
+assert.ok(admin.includes("prepare("), "admin.php should use prepared SQL for dashboard writes");
 
 const collect = read("collect.php");
 for (const token of [
@@ -255,7 +274,18 @@ const heroDiagram = index.match(/<svg class="tc-diagram"[\s\S]*?<\/svg>/)?.[0] ?
 assert.ok(heroDiagram, "hero should use the refined TinyCart diagram");
 assert.ok(heroDiagram.includes('vector-effect="non-scaling-stroke"'), "hero diagram should keep crisp non-scaling hairlines");
 assert.doesNotMatch(heroDiagram, /stroke-width="2"/, "hero diagram should avoid thick mockup strokes");
+assert.doesNotMatch(heroDiagram, /stroke-dasharray/, "hero diagram should avoid dotted connector lines");
 assert.ok(heroDiagram.includes("TC/CART"), "hero diagram should read as a precise TinyCart schematic");
+for (const token of [
+  "Cash, cards, and fulfilment in one quiet dashboard",
+  "Payments",
+  "Orders",
+  "Fulfilment",
+  "Shipping, tax, refunds",
+  "manual"
+]) {
+  assert.ok(index.includes(token), `landing should explain ${token} in the shopping flow`);
+}
 
 const siteCss = read("site.css");
 for (const token of ["scrollbar-color: var(--fg) var(--soft)", ".diagram-wrap", ".comparison-table", ".doc-shell"]) {
@@ -265,6 +295,17 @@ for (const token of ["scrollbar-color: var(--fg) var(--soft)", ".diagram-wrap", 
 const docsHtml = read("docs.html");
 for (const token of ["TinyCart Docs", "data-tc-id", "tinycart.init", "apiCheckout", "catalogUrl", "Developer API"]) {
   assert.ok(docsHtml.includes(token), `docs.html should include ${token}`);
+}
+for (const token of [
+  "Shopping cart flows",
+  "Payment flow",
+  "Order records",
+  "Fulfilment is manual",
+  "Shipping, tax, refunds",
+  "webhook",
+  "ORDER_EMAIL_TO"
+]) {
+  assert.ok(docsHtml.includes(token), `docs.html should explain ${token}`);
 }
 assert.ok(docsHtml.includes("setup.html") && docsHtml.includes("security.html") && docsHtml.includes("compare.html"),
   "docs.html should link setup, security, and comparisons");
@@ -298,6 +339,7 @@ for (const [file, competitor] of [
 
 assert.ok(js.includes("--tc-bg:#fff"), "cart widget should default to light mode");
 assert.ok(js.includes(".tc-dialog{position:fixed;inset:auto 12px 12px 12px"), "cart modal should use compact mobile spacing");
+assert.match(js, /\.tc-dialog\{[^}]*padding:0/, "cart modal should neutralize host section padding");
 assert.ok(js.includes(".tc-body{overflow:auto;scrollbar-color:var(--tc-fg,#111) var(--tc-soft,#f7f7f7);"), "cart modal should style its scrollbar");
 assert.ok(js.includes(".tc-form{display:grid;gap:8px;margin-top:8px;padding-top:10px"), "checkout form spacing should stay compact");
 assert.ok(!js.includes("prefers-color-scheme:dark"), "cart widget should not force a dark theme by media query");

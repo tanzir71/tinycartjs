@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TinyCart — Embeddable storefront in one script tag</title>
-  <meta name="description" content="TinyCart turns any website into a small storefront with one script include, product data attributes, and a PHP checkout endpoint that re-prices every order server-side.">
+  <title>TinyCart - Embeddable storefront with COD and ops admin</title>
+  <meta name="description" content="TinyCart turns any website into a small storefront with one script include, COD checkout, server-side validation, and a minimal PHP/SQLite ops dashboard.">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0b0b'/%3E%3Cpath d='M18 20h5l3 18h20l3-12H28' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='30' cy='46' r='3' fill='%23fff'/%3E%3Ccircle cx='44' cy='46' r='3' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -159,6 +159,7 @@
       gap: clamp(28px, 4.5vw, 56px);
       align-items: start;
     }
+    .hero-grid > *, .demo-grid > * { min-width: 0; }
 
     .hero-stats {
       display: grid;
@@ -343,6 +344,8 @@
     @media (max-width: 560px) {
       .highlights { grid-template-columns: 1fr; }
       .hero-stats { grid-template-columns: 1fr; }
+      .hero .actions { flex-direction: column; align-items: flex-start; }
+      .hero .actions .btn { width: min(220px, 100%); }
       .product { flex-direction: column; align-items: flex-start; }
     }
 
@@ -370,29 +373,29 @@
       <div class="hero-grid">
         <div>
           <p class="eyebrow">v0.2 · free · open source · no build step</p>
-          <h1>Static storefronts, one script tag.</h1>
-          <p class="lead">Add product buttons to any page, drop in TinyCart, and let your server verify prices, coupons, inventory, and payments before an order is stored.</p>
+          <h1>Static storefronts with checkout ops included.</h1>
+          <p class="lead">Add product buttons to any page, let shoppers choose online payment or Cash on Delivery, and manage orders, stock, coupons, CSV exports, and webhook retries from a small PHP dashboard.</p>
           <div class="actions">
             <a class="btn" href="#demo">Try the demo</a>
             <a class="btn secondary" href="docs.html">Read the docs</a>
           </div>
           <div class="hero-stats" aria-label="TinyCart summary">
-            <div class="stat"><strong>44KB</strong><span>small ceiling</span></div>
+            <div class="stat"><strong>&lt;48KB</strong><span>small ceiling</span></div>
             <div class="stat"><strong>0</strong><span>runtime deps</span></div>
-            <div class="stat"><strong>PHP</strong><span>shared hosting</span></div>
-            <div class="stat"><strong>$0</strong><span>MIT license</span></div>
+            <div class="stat"><strong>COD</strong><span>cash ready</span></div>
+            <div class="stat"><strong>OPS</strong><span>admin built in</span></div>
           </div>
           <div class="code-strip" role="img" aria-label="Example TinyCart script include">
             <div class="bar"><b>index.html</b><span>embed</span></div>
             <pre><code>&lt;<span class="tok-tag">script</span> <span class="tok-attr">src</span>=<span class="tok-str">"tinycart.js"</span>
-  <span class="tok-attr">data-tc-config</span>=<span class="tok-str">'{"cartKey":"store-1","currency":"USD","apiCheckout":"/checkout.php"}'</span>&gt;
+  <span class="tok-attr">data-tc-config</span>=<span class="tok-str">'{"cartKey":"store-1","currency":"USD","apiCheckout":"/checkout.php","paymentMethods":["online","cod"],"defaultPaymentMethod":"cod"}'</span>&gt;
 &lt;/<span class="tok-tag">script</span>&gt;</code></pre>
           </div>
         </div>
 
-        <div class="mockup" aria-label="TinyCart cart flow schematic">
+        <div class="mockup" aria-label="TinyCart cart, COD, and ops flow schematic">
           <svg class="tc-diagram" viewBox="0 0 360 320" role="img" aria-labelledby="mock-title" xmlns="http://www.w3.org/2000/svg">
-            <title id="mock-title">TinyCart checkout flow schematic</title>
+            <title id="mock-title">TinyCart cart, COD, and ops flow schematic</title>
             <g fill="none" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke">
               <rect x="28" y="34" width="212" height="238" rx="12" fill="#fff" stroke="#111" stroke-width="1.25"/>
               <path d="M28 70h212M28 219h212" stroke="#dedede" stroke-width="1"/>
@@ -410,7 +413,7 @@
               <circle cx="294" cy="101" r="31" fill="#fff" stroke="#111" stroke-width="1.25"/>
               <path d="M280 91h7l4 21h20l3-14h-21M293 118h1M309 118h1" stroke="#111" stroke-width="1.2"/>
               <circle cx="316" cy="78" r="10" fill="#111" stroke="#111" stroke-width="1"/>
-              <path d="M240 106c12 0 16-5 24-5M240 207h25" stroke="#111" stroke-width="1" stroke-dasharray="3 6"/>
+              <path d="M240 101h24M240 207h24" stroke="#111" stroke-width="1"/>
 
               <rect x="264" y="176" width="68" height="66" rx="10" fill="#fff" stroke="#111" stroke-width="1.25"/>
               <path d="M279 201h38M279 216h23M279 229h31" stroke="#111" stroke-width="1"/>
@@ -422,8 +425,8 @@
               <text x="50" y="84" font-size="8.5" font-weight="800" letter-spacing=".16em" fill="#777">ITEMS</text>
               <text x="50" y="232" font-size="8.5" font-weight="800" letter-spacing=".16em" fill="#777">TOTAL</text>
               <text x="294" y="82" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">3</text>
-              <text x="298" y="164" text-anchor="middle" font-size="8.5" font-weight="800" letter-spacing=".14em" fill="#777">SERVER</text>
-              <text x="298" y="193" text-anchor="middle" font-size="8.5" font-weight="800" letter-spacing=".14em">VERIFY</text>
+              <text x="298" y="164" text-anchor="middle" font-size="8.5" font-weight="800" letter-spacing=".14em" fill="#777">OPS</text>
+              <text x="298" y="193" text-anchor="middle" font-size="8.5" font-weight="800" letter-spacing=".14em">COD DUE</text>
             </g>
           </svg>
         </div>
@@ -433,8 +436,8 @@
     <section>
       <div class="wrap">
         <div class="section-head">
-          <h2>Small on purpose.</h2>
-          <p>No framework, no bundler, no account. Everything ships as flat files you can read in an afternoon.</p>
+          <h2>Small on purpose, useful on day one.</h2>
+          <p>No framework, no bundler, no account. TinyCart stays flat-file friendly while covering the order work most small stores actually need.</p>
         </div>
         <div class="grid-hair highlights">
           <div class="cell">
@@ -444,18 +447,18 @@
           </div>
           <div class="cell">
             <div class="k">02</div>
-            <h3>Zero build</h3>
-            <p>One vanilla JS file and two PHP endpoints. Drop them on shared hosting and you&rsquo;re live.</p>
+            <h3>COD aware</h3>
+            <p>Enable online, manual, or Cash on Delivery checkout. COD orders skip provider redirects and enter ops as <code style="font:600 0.9em var(--mono)">cod_due</code>.</p>
           </div>
           <div class="cell">
             <div class="k">03</div>
-            <h3>Privacy-friendly</h3>
-            <p>Cart lives in <code style="font:600 0.9em var(--mono)">localStorage</code>. Analytics are optional, batched, and PII-free.</p>
+            <h3>Ops dashboard</h3>
+            <p>Use <code style="font:600 0.9em var(--mono)">admin.php</code> for order filters, fulfilment status, admin notes, stock edits, coupon overrides, and CSV export.</p>
           </div>
           <div class="cell">
             <div class="k">04</div>
-            <h3>Signable</h3>
-            <p>Optional HMAC signatures on product data add defense-in-depth against tampering.</p>
+            <h3>Webhook health</h3>
+            <p>Queue failed webhook deliveries and retry them from the dashboard, without blocking checkout or adding a background worker.</p>
           </div>
         </div>
       </div>
@@ -465,7 +468,7 @@
       <div class="wrap">
         <div class="section-head">
           <h2>Try it right here.</h2>
-          <p>These are real TinyCart buttons running on this page. Add a few items — the floating cart is the actual widget.</p>
+          <p>These are real TinyCart buttons running on this page. Add a few items, open the floating cart, and you will see Cash on Delivery selected by default.</p>
         </div>
         <div class="demo-grid">
           <div class="shop">
@@ -514,8 +517,8 @@
           </div>
           <aside class="demo-note">
             <h3>Demo mode</h3>
-            <p>Checkout here is stubbed with an <code>onCheckout</code> hook, so nothing is charged or stored.</p>
-            <p>In production the same buttons POST to <code>checkout.php</code>, which validates against your server catalog before creating an order.</p>
+            <p>Checkout here is stubbed with an <code>onCheckout</code> hook, so nothing is charged or stored. The payment method controls are the real widget UI.</p>
+            <p>In production the same buttons POST to <code>checkout.php</code>, which validates against your server catalog before creating an order for online payment, COD, or manual collection.</p>
           </aside>
         </div>
       </div>
@@ -524,7 +527,7 @@
     <section>
       <div class="wrap">
         <div class="section-head">
-          <h2>Embed, sell, verify.</h2>
+          <h2>Embed, sell, operate.</h2>
           <p>Three moving parts, each with a single job.</p>
         </div>
         <div class="grid-hair flow">
@@ -535,13 +538,53 @@
           </div>
           <div class="step">
             <div class="n">02</div>
-            <strong>Cart opens anywhere</strong>
-            <p>The script renders a mobile-first floating cart with editable quantities, coupon entry, and a checkout form.</p>
+            <strong>Shopper chooses payment</strong>
+            <p>The script renders a mobile-first floating cart with editable quantities, coupon entry, checkout fields, and optional payment-method radios.</p>
           </div>
           <div class="step">
             <div class="n">03</div>
-            <strong>Server decides</strong>
-            <p>The PHP endpoint checks origin, rate-limits, re-prices every item, stores the order, and can hand off to Stripe or PayPal.</p>
+            <strong>Server and ops decide</strong>
+            <p>The PHP endpoint checks origin, rate-limits, re-prices every item, stores the order, and the admin dashboard handles follow-through.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section>
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Cash, cards, and fulfilment in one quiet dashboard.</h2>
+          <p>TinyCart stays small by separating cart UX from store operations. The included PHP endpoints cover the secure handoff points and the admin page covers the daily order queue.</p>
+        </div>
+        <div class="grid-hair highlights">
+          <div class="cell">
+            <div class="k">PAY</div>
+            <h3>Payments</h3>
+            <p>Payments are off by default. Configure online payment, Cash on Delivery, or manual collection in PHP, then mirror those options in the widget config.</p>
+          </div>
+          <div class="cell">
+            <div class="k">ORDERS</div>
+            <h3>Orders</h3>
+            <p><code style="font:600 0.9em var(--mono)">checkout.php</code> stores validated orders in SQLite before any payment handoff. Orders track payment method, payment status, and fulfilment status.</p>
+          </div>
+          <div class="cell">
+            <div class="k">SHIP</div>
+            <h3>Fulfilment</h3>
+            <p>Fulfilment is manual: use the ops dashboard, order email, webhook, or CSV export to pick, pack, ship, and update your own system.</p>
+          </div>
+          <div class="cell">
+            <div class="k">POLICY</div>
+            <h3>Shipping, tax, refunds</h3>
+            <p>Shipping rates, tax rules, refunds, returns, and customer support are not automated by TinyCart. Handle them in your backend, payment dashboard, or existing store workflow.</p>
+          </div>
+          <div class="cell">
+            <div class="k">STOCK</div>
+            <h3>Inventory and coupons</h3>
+            <p>Catalog, stock, and coupon truth live server-side. Admin can update stock and pause configured coupons; checkout still re-checks every product, discount, and stock reservation.</p>
+          </div>
+          <div class="cell">
+            <div class="k">OPS</div>
+            <h3>Admin ops</h3>
+            <p>Use <code style="font:600 0.9em var(--mono)">admin.php</code> for filters, notes, COD collection, CSV export, stock edits, coupon overrides, and webhook retry health.</p>
           </div>
         </div>
       </div>
@@ -597,7 +640,7 @@
 
   <script
     src="tinycart.js"
-    data-tc-config='{"cartKey":"demo-store","currency":"USD","apiCheckout":"/checkout.php","accent":"#1a73e8"}'></script>
+    data-tc-config='{"cartKey":"demo-store","currency":"USD","apiCheckout":"/checkout.php","paymentMethods":["online","cod"],"defaultPaymentMethod":"cod","accent":"#1a73e8"}'></script>
   <script>
     // Demo-only: stub checkout so the page works with no backend.
     (function () {

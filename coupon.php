@@ -19,6 +19,7 @@ const COUPON_API_KEYS = [
 ];
 
 const COUPON_ERROR_LOG_PATH = __DIR__ . '/data/coupon_errors.log';
+const COUPON_DB_PATH = __DIR__ . '/data/orders.sqlite';
 const COUPON_RATE_LIMIT_DIR = __DIR__ . '/data/coupon_rate_limits';
 const COUPON_RATE_LIMIT_WINDOW_SECONDS = 60;
 const COUPON_RATE_LIMIT_MAX_REQUESTS = 60;
@@ -50,7 +51,7 @@ function couponMain(): void
         $payload = couponReadJsonBody();
         $code = strtoupper(couponCleanString($payload['code'] ?? '', 40));
         $subtotalCents = couponSubtotalCents($payload['cart'] ?? []);
-        $coupon = couponValidate($code, $subtotalCents);
+        $coupon = couponValidate($code, $subtotalCents, 'couponOverrideActive');
 
         couponJson([
             'ok' => true,
@@ -167,9 +168,12 @@ function couponSubtotalCents(mixed $cart): int
     return $subtotal === false ? 0 : (int)$subtotal;
 }
 
-function couponValidate(string $code, int $subtotalCents): array
+function couponValidate(string $code, int $subtotalCents, ?callable $couponOverride = null): array
 {
     if ($code === '' || !isset(COUPONS[$code])) {
+        throw new CouponClientError('Coupon not valid.', 400);
+    }
+    if ($couponOverride !== null && !$couponOverride($code)) {
         throw new CouponClientError('Coupon not valid.', 400);
     }
 
@@ -204,6 +208,36 @@ function couponDiscountCents(string $type, float $value, int $subtotalCents): in
         ? (int)round($value * 100)
         : (int)round($subtotalCents * ($value / 100));
     return max(0, min($subtotalCents, $discount));
+}
+
+function couponOverrideActive(string $code): bool
+{
+    try {
+        $pdo = couponDb();
+        $statement = $pdo->prepare('SELECT active FROM coupon_overrides WHERE code = :code LIMIT 1');
+        $statement->execute([':code' => strtoupper(couponCleanString($code, 40))]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            return true;
+        }
+        return (int)($row['active'] ?? 1) === 1;
+    } catch (Throwable) {
+        return true;
+    }
+}
+
+function couponDb(): PDO
+{
+    $pdo = new PDO('sqlite:' . COUPON_DB_PATH);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS coupon_overrides (
+            code TEXT PRIMARY KEY,
+            active INTEGER NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
+    return $pdo;
 }
 
 function couponCleanString(mixed $value, int $maxLength): string

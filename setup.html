@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TinyCart Setup - Shared hosting and PHP checkout</title>
-  <meta name="description" content="Deploy TinyCart on Namecheap, cPanel, shared hosting, or a static storefront with PHP checkout, coupons, catalog, analytics, and SQLite.">
+  <title>TinyCart Setup - Shared hosting, COD, and ops admin</title>
+  <meta name="description" content="Deploy TinyCart on Namecheap, cPanel, shared hosting, or a static storefront with PHP checkout, COD, admin ops, coupons, catalog, analytics, and SQLite.">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0b0b'/%3E%3Cpath d='M18 20h5l3 18h20l3-12H28' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='30' cy='46' r='3' fill='%23fff'/%3E%3Ccircle cx='44' cy='46' r='3' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,7 +29,7 @@
     <section class="doc-hero wrap">
       <p class="eyebrow">SETUP - SHARED HOSTING</p>
       <h1>TinyCart Setup</h1>
-      <p class="lead">A practical deployment path for Namecheap, cPanel-style shared hosting, and static storefronts that need PHP and SQLite behind a small cart UI.</p>
+      <p class="lead">A practical deployment path for shared-hosted storefronts that need PHP/SQLite checkout, COD collection, order operations, and a small cart UI.</p>
     </section>
 
     <section class="section">
@@ -37,11 +37,11 @@
         <div class="section-head">
           <span class="idx">CHECKLIST</span>
           <h2>Upload, configure, protect.</h2>
-          <p>The basic install is flat files. The important work is tightening origins, secrets, product truth, and file permissions before real orders arrive.</p>
+          <p>The basic install is flat files. The important work is tightening origins, secrets, product truth, payment methods, admin auth, and file permissions before real orders arrive.</p>
         </div>
         <div class="grid grid-3">
           <div class="cell"><span class="k">01</span><h3>Upload files</h3><p>Put <code>tinycart.js</code>, <code>checkout.php</code>, optional endpoints, and these HTML docs into <code>public_html/tinycart</code> or your storefront directory.</p></div>
-          <div class="cell"><span class="k">02</span><h3>Configure origins</h3><p>Set <code>ALLOWED_ORIGINS</code>, endpoint-specific origin lists, API keys, product catalog rows, coupons, payment credentials, and webhook secrets.</p></div>
+          <div class="cell"><span class="k">02</span><h3>Configure origins</h3><p>Set <code>ALLOWED_ORIGINS</code>, endpoint-specific origin lists, API keys, product catalog rows, coupons, payment methods, credentials, and webhook secrets.</p></div>
           <div class="cell"><span class="k">03</span><h3>Protect data</h3><p>Create a private writable <code>data/</code> directory for SQLite, logs, rate-limit buckets, and queued webhook or analytics records.</p></div>
         </div>
       </div>
@@ -52,6 +52,7 @@
         <aside class="doc-side" aria-label="Setup sections">
           <a href="#requirements">Requirements</a>
           <a href="#files">Files</a>
+          <a href="#ops">COD and ops</a>
           <a href="#permissions">Permissions</a>
           <a href="#embed">Merchant embed</a>
           <a href="#node">Node hosting</a>
@@ -67,11 +68,16 @@
           </section>
           <section id="files">
             <h2>Configure the PHP files</h2>
-            <p>Edit <code>checkout.php</code> first. Keep <code>PRODUCT_CATALOG</code> and <code>COUPONS</code> as server truth. Then configure optional <code>coupon.php</code>, <code>payment.php</code>, <code>catalog.php</code>, <code>admin.php</code>, and <code>collect.php</code> only if your store uses those features.</p>
+            <p>Edit <code>checkout.php</code> first. Keep <code>PRODUCT_CATALOG</code> and <code>COUPONS</code> as server truth. Configure <code>ENABLED_PAYMENT_METHODS</code> for choices such as online, COD, or manual payment. Then configure optional <code>coupon.php</code>, <code>payment.php</code>, <code>catalog.php</code>, <code>admin.php</code>, and <code>collect.php</code> only if your store uses those features.</p>
             <pre class="pre-block">ALLOWED_ORIGINS = ["https://store.example"]
 API_KEYS = ["long-random-public-endpoint-key"]
 HMAC_SECRET = "server-only-secret"
-PAYMENT_PROVIDER = "stripe" // or "paypal", or blank</pre>
+PAYMENT_PROVIDER = "stripe" // or "paypal", or blank
+ENABLED_PAYMENT_METHODS = ["online", "cod"]</pre>
+          </section>
+          <section id="ops">
+            <h2>COD and ops dashboard</h2>
+            <p>COD orders skip Stripe and PayPal, store <code>payment_status</code> as <code>cod_due</code>, and stay visible in <code>admin.php</code> until an operator marks cash collected. After setting admin auth, use the dashboard to filter orders, update payment and fulfilment status, edit stock, toggle coupon overrides, export CSV, and queue webhook retries.</p>
           </section>
           <section id="permissions">
             <h2>Protect data and logs</h2>
@@ -83,7 +89,7 @@ PAYMENT_PROVIDER = "stripe" // or "paypal", or blank</pre>
             <h2>Merchant page embed</h2>
             <pre class="pre-block">&lt;script
   src="/tinycart/tinycart.js"
-  data-tc-config='{"cartKey":"store-1","currency":"USD","apiCheckout":"/tinycart/checkout.php","apiCoupon":"/tinycart/coupon.php","catalogUrl":"/tinycart/catalog.php","analyticsUrl":"/tinycart/collect.php"}'&gt;
+  data-tc-config='{"cartKey":"store-1","currency":"USD","apiCheckout":"/tinycart/checkout.php","apiCoupon":"/tinycart/coupon.php","catalogUrl":"/tinycart/catalog.php","analyticsUrl":"/tinycart/collect.php","paymentMethods":["online","cod"],"defaultPaymentMethod":"cod"}'&gt;
 &lt;/script&gt;</pre>
           </section>
           <section id="node">

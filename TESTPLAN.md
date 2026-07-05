@@ -52,11 +52,38 @@ Expected: HTTP `400` with `Coupon expired.`.
 
 Forged checkout coupons are ignored. Sending `{"code":"FAKE100","amount":2400}` in `cart.coupon` should still return `discount_cents:0` and `total_cents` equal to the server subtotal.
 
+After configuring admin auth, deactivate `SAVE10` from `admin.php`. Expected: `/coupon.php` rejects `SAVE10`, and `/checkout.php` ignores a submitted `SAVE10` coupon. Reactivating it restores both preview and checkout discounts.
+
 ## Payment Handoff
 
 With `PAYMENT_PROVIDER` blank in `checkout.php`, successful checkout should still return `"pay_url":null`.
 
 With Stripe or PayPal configured, successful checkout stores the order with `payment_status` pending, creates a provider checkout/order using the server-recomputed `total_cents`, and returns a non-null `pay_url`. Stripe paid status is finalized by signed `checkout.session.completed` webhooks sent to `payment.php`; PayPal paid status is finalized by the return handler at `payment.php?order_id={ORDER_ID}` after capture.
+
+## Cash on Delivery
+
+Set `ENABLED_PAYMENT_METHODS = ['online', 'cod']` and `DEFAULT_PAYMENT_METHOD = 'cod'` in `checkout.php`, then send a checkout payload with `"paymentMethod":"cod"`:
+
+```bash
+curl -i -X POST http://127.0.0.1:8000/checkout.php \
+  -H "Origin: http://127.0.0.1:8000" \
+  -H "Content-Type: application/json" \
+  --data '{"cartKey":"demo-store","currency":"USD","paymentMethod":"cod","customer":{"name":"Nadia","phone":"+8801555123456","email":"","address":"12 Market Road"},"cart":{"items":[{"id":"tee-001","name":"TinyCart Tee","priceCents":2400,"qty":1,"options":{}}],"totals":{"subtotalCents":2400}},"page":"http://127.0.0.1:8000/sample.html"}'
+```
+
+Expected: HTTP `200`, `pay_url:null`, `payment_method:"cod"`, and `payment_status:"cod_due"` in the response. The stored order row should have `payment_provider = cod`.
+
+If no `paymentMethod` is sent, legacy behavior remains: blank `PAYMENT_PROVIDER` means manual checkout; `stripe` or `paypal` means online checkout.
+
+## Payment Method UI
+
+Set:
+
+```html
+data-tc-config='{"paymentMethods":["online","cod"],"defaultPaymentMethod":"cod","apiCheckout":"/checkout.php"}'
+```
+
+Expected: the mobile cart shows radio options for online payment and Cash on Delivery, COD is selected by default, and checkout JSON includes `"paymentMethod":"cod"`. With zero or one configured method, the widget should not render the radio group.
 
 ## Catalog Endpoint
 
@@ -129,7 +156,9 @@ Expected: HTTP `400` during catalog validation if the request exceeds configured
 
 Configure `WEBHOOK_URL` and `WEBHOOK_SECRET`, then complete a checkout.
 
-Expected: checkout still succeeds even if the webhook endpoint is down. Successful webhook requests include `X-TinyCart-Signature` as an HMAC-SHA256 of the JSON body, and the JSON body contains totals/items but no customer PII.
+Expected: checkout still succeeds even if the webhook endpoint is down. Successful webhook requests include `X-TinyCart-Signature` as an HMAC-SHA256 of the JSON body, and the JSON body contains totals/items, `payment_method`, `payment_status`, and `fulfillment_status`, but no customer PII.
+
+If delivery fails, open `admin.php` and use `Retry now` in Webhook health. Expected: the delivery row moves back to `pending`, `attempts` increments, and `next_attempt_at` is set to now.
 
 ## Order Admin
 
@@ -142,7 +171,16 @@ curl -i http://127.0.0.1:8000/admin.php \
 
 Expected: HTTP `403` with `Admin access is not configured.`.
 
-After configuring `ADMIN_API_KEYS` or `ADMIN_PASSWORD_HASH`, `admin.php` should list recent orders with totals and pagination. Probe order/customer fields containing markup should render escaped text, not executable HTML.
+After configuring `ADMIN_API_KEYS` or `ADMIN_PASSWORD_HASH`, `admin.php` should list recent orders with totals and pagination. Probe order/customer/note fields containing markup should render escaped text, not executable HTML.
+
+Admin write checks:
+
+- POST without a valid `_csrf` token should return HTTP `403`.
+- Unknown payment or fulfilment status values should return HTTP `400`.
+- Updating payment status, fulfilment status, and admin note should persist and redirect back to the dashboard.
+- The `Cash collected` COD action should set `payment_status` to `paid` and populate `paid_at`.
+- Updating inventory should change the `inventory` stock shown in the panel.
+- CSV export should include only the current filtered order list and prefix formula-like cells such as `=`, `+`, `-`, and `@` with an apostrophe.
 
 ## Beacon / Collect Accepts JSON
 
@@ -209,7 +247,7 @@ Expected:
 
 ## CSRF Expectations
 
-TinyCart's admin page is read-only. If you add order-management routes later, enforce login and CSRF tokens there. Public checkout/collect endpoints rely on explicit `Origin` checks, optional API keys, validation, and rate limits rather than browser cookies.
+TinyCart's admin write forms require login and PHP session CSRF tokens. Public checkout/collect endpoints rely on explicit `Origin` checks, optional API keys, validation, and rate limits rather than browser cookies.
 
 ## Collect Rate Limit
 

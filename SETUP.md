@@ -1,12 +1,12 @@
 # TinyCart Shared Hosting Setup
 
-These steps target Namecheap/cPanel-style shared hosting with PHP.
+These steps target Namecheap/cPanel-style shared hosting with PHP, including COD checkout, SQLite orders, and the small ops dashboard.
 
 ## Requirements
 
 - PHP 8.1+ recommended.
 - PHP extensions: `pdo_sqlite` and `json` required; `mbstring` recommended.
-- Writable private `data/` directory for SQLite, logs, and rate-limit buckets.
+- Writable private `data/` directory for SQLite, logs, rate-limit buckets, and queued webhook or analytics records.
 
 ## Upload
 
@@ -17,6 +17,7 @@ These steps target Namecheap/cPanel-style shared hosting with PHP.
    - Replace `HMAC_SECRET`.
    - Replace `PRODUCT_CATALOG` with your real product ids, prices, and stock.
    - Replace `COUPONS` with your real server-side coupon rules.
+   - Leave `ENABLED_PAYMENT_METHODS` empty for legacy behavior, or set values such as `['online', 'cod']`; set `DEFAULT_PAYMENT_METHOD` when you want one selected first.
    - Leave `PAYMENT_PROVIDER` blank, or set it to `stripe`/`paypal` and configure the matching secret keys plus `PAYMENT_SUCCESS_URL` and `PAYMENT_CANCEL_URL`.
    - For PayPal, set `PAYMENT_SUCCESS_URL` to `/tinycart/payment.php?order_id={ORDER_ID}` so the return handler can capture the approved order.
    - Set `WEBHOOK_URL` / `WEBHOOK_SECRET` for signed order webhooks, and optional `ORDER_EMAIL_TO` for plaintext order emails.
@@ -30,10 +31,10 @@ These steps target Namecheap/cPanel-style shared hosting with PHP.
 5. Edit `catalog.php` if server-driven catalog hydration is enabled:
    - Set `CATALOG_ALLOWED_ORIGINS` to your real storefront origins.
    - Keep `PRODUCT_CATALOG` in sync with `checkout.php`; checkout is still the source of truth.
-6. Edit `admin.php` if you want the read-only order view:
+6. Edit `admin.php` if you want the ops dashboard:
    - Set `ADMIN_ALLOWED_ORIGINS` to your real admin/storefront origins.
    - Add long random `ADMIN_API_KEYS` for API-key access, or set `ADMIN_PASSWORD_HASH` with `password_hash('your-password', PASSWORD_DEFAULT)` for Basic Auth.
-   - Leave both blank to keep the admin view disabled.
+   - Leave both blank to keep the dashboard disabled.
 7. Create `data/` beside `checkout.php` or let the scripts create it.
 8. Edit `collect.php` if analytics are enabled:
    - Set `COLLECT_ALLOWED_ORIGINS` to the storefront origins that may send beacons.
@@ -58,9 +59,44 @@ If cPanel runs PHP as your user, `750`/`640` usually works. If SQLite cannot wri
 
 ## SQLite
 
-`checkout.php` creates `data/orders.sqlite` and the required order tables automatically with PDO prepared statements. Orders start with `payment_status` set to `pending`; when payment providers are enabled, the checkout response includes `pay_url` for the hosted payment page. `payment.php` updates the same order row to `paid` after a verified Stripe webhook or captured PayPal return. `catalog.php` serves a read-only cacheable catalog for optional client hydration. `admin.php` reads recent orders from the same SQLite file after auth. `coupon.php` stores rate-limit buckets in `data/coupon_rate_limits/`. `collect.php` creates `data/collect.sqlite` with `collect_events`, `failed_payloads`, and `rate_limits`.
+`checkout.php` creates `data/orders.sqlite` and the required order tables automatically with PDO prepared statements. Manual and online orders start with `payment_status` set to `pending`; COD orders use `payment_status` `cod_due` and skip payment provider handoff. When payment providers are enabled, online checkout responses include `pay_url` for the hosted payment page. `payment.php` updates the same order row to `paid` after a verified Stripe webhook or captured PayPal return. `catalog.php` serves a read-only cacheable catalog for optional client hydration. `admin.php` reads and updates orders, stock, coupon overrides, and webhook retry state after auth. `coupon.php` stores rate-limit buckets in `data/coupon_rate_limits/`. `collect.php` creates `data/collect.sqlite` with `collect_events`, `failed_payloads`, and `rate_limits`.
 
-The checkout database also includes an `inventory` table seeded from `PRODUCT_CATALOG` on first run. Existing rows are not overwritten automatically, so adjust stock in SQLite when restocking. Failed webhook attempts are recorded in `webhook_deliveries` for later retry tooling.
+The checkout database also includes an `inventory` table seeded from `PRODUCT_CATALOG` on first run. Existing rows are not overwritten automatically, so restock through `admin.php` or SQLite. Coupon activation overrides live in `coupon_overrides`; the configured coupon rules still live in PHP constants. Failed webhook attempts are recorded in `webhook_deliveries` and can be queued for immediate retry in the dashboard.
+
+## Cash on Delivery
+
+For emerging-market or offline fulfilment flows, configure COD alongside online payment:
+
+```php
+const PAYMENT_PROVIDER = 'stripe'; // or 'paypal', or blank if only manual/COD
+const ENABLED_PAYMENT_METHODS = ['online', 'cod'];
+const DEFAULT_PAYMENT_METHOD = 'cod';
+```
+
+Then mirror those choices in the widget:
+
+```html
+<script
+  src="/tinycart/tinycart.js"
+  data-tc-config='{"cartKey":"store-1","currency":"USD","apiCheckout":"/tinycart/checkout.php","paymentMethods":["online","cod"],"defaultPaymentMethod":"cod"}'>
+</script>
+```
+
+COD orders are stored with `payment_method = cod`, `payment_provider = cod`, and `payment_status = cod_due`. Use the admin order detail button labeled `Cash collected` after the courier or shop operator receives cash; this sets the order to `paid` and records `paid_at`.
+
+## Ops Dashboard Flow
+
+Open `admin.php` after configuring auth. The dashboard supports:
+
+- Filtering orders by method, payment status, fulfilment status, and search text.
+- Updating payment status, fulfilment status, and an internal admin note.
+- Calling or WhatsApp-linking the stored phone number from order detail.
+- Exporting the current filtered order list as CSV with spreadsheet-safe cells.
+- Updating stock in `inventory`.
+- Activating or deactivating configured coupon codes through `coupon_overrides`.
+- Viewing pending/failed webhook deliveries and queueing `Retry now`.
+
+All POST actions use the same admin auth plus a PHP session CSRF token. Allowed statuses are intentionally small: payment `pending`, `paid`, `cod_due`, `cancelled`, `refunded`; fulfilment `new`, `confirmed`, `packed`, `shipped`, `fulfilled`, `cancelled`.
 
 If SQLite is unavailable on your hosting plan, use a protected file log fallback: change `storeOrder()` to append validated orders as JSON lines to `data/orders.jsonl` with `flock()`. Keep the same validation steps before writing.
 
@@ -110,7 +146,7 @@ Place product buttons anywhere on your site, then include:
 ```html
 <script
   src="/tinycart/tinycart.js"
-  data-tc-config='{"cartKey":"store-1","currency":"USD","apiCheckout":"/tinycart/checkout.php","apiCoupon":"/tinycart/coupon.php","catalogUrl":"/tinycart/catalog.php","analyticsUrl":"/tinycart/collect.php","accent":"#1A73E8"}'>
+  data-tc-config='{"cartKey":"store-1","currency":"USD","apiCheckout":"/tinycart/checkout.php","apiCoupon":"/tinycart/coupon.php","catalogUrl":"/tinycart/catalog.php","analyticsUrl":"/tinycart/collect.php","paymentMethods":["online","cod"],"defaultPaymentMethod":"cod","accent":"#1A73E8"}'>
 </script>
 ```
 

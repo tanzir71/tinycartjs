@@ -138,7 +138,7 @@ h3 { font-size: 17px; line-height: 1.25; font-weight: 750; }
 .doc-side a { color: var(--muted); font: 750 13px/1.2 var(--mono); text-decoration: none; }
 .doc-side a:hover { color: var(--fg); }
 .doc-content { display: grid; gap: 22px; min-width: 0; }
-.doc-content section { padding: 28px; border: 1px solid var(--line); background: #fff; }
+.doc-content section { min-width: 0; padding: 28px; border: 1px solid var(--line); background: #fff; }
 .doc-content section h2 + p { margin-top: 12px; }
 .doc-content p, .doc-content li { color: var(--muted); }
 .doc-content ul, .doc-content ol { margin: 14px 0 0; padding-left: 20px; }
@@ -148,6 +148,7 @@ h3 { font-size: 17px; line-height: 1.25; font-weight: 750; }
   margin: 16px 0 0;
   padding: 18px;
   overflow-x: auto;
+  max-width: 100%;
   border: 1px solid var(--ink);
   background: var(--ink);
   color: #f2f2f2;

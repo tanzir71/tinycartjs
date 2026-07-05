@@ -42,6 +42,8 @@ const COUPONS = [
 ];
 
 const PAYMENT_PROVIDER = '';
+const ENABLED_PAYMENT_METHODS = [];
+const DEFAULT_PAYMENT_METHOD = '';
 const PAYMENT_SUCCESS_URL = '';
 const PAYMENT_CANCEL_URL = '';
 const PAYMENT_HTTP_TIMEOUT_SECONDS = 12;
@@ -75,8 +77,8 @@ function main(): void
         rateLimit(clientIp());
 
         $payload = readJsonBody();
-        $validated = validateOrderPayload($payload);
         $pdo = db();
+        $validated = validateOrderPayload($payload, fn(string $code): bool => checkoutCouponOverrideActive($pdo, $code));
         $orderId = storeOrder($pdo, $validated);
         $payment = createPaymentHandoff($validated, $orderId);
         if ($payment !== null) {
@@ -92,6 +94,8 @@ function main(): void
             'discount_cents' => $validated['discount_cents'],
             'total_cents' => $validated['total_cents'],
             'coupon_code' => $validated['coupon_code'],
+            'payment_method' => $validated['payment_method'],
+            'payment_status' => $validated['payment_status'],
             'payment_provider' => $payment['provider'] ?? null,
         ]);
     } catch (ClientError $error) {
@@ -193,7 +197,7 @@ function readJsonBody(): array
     return $payload;
 }
 
-function validateOrderPayload(array $payload): array
+function validateOrderPayload(array $payload, ?callable $couponOverride = null): array
 {
     $customer = $payload['customer'] ?? [];
     $cart = $payload['cart'] ?? [];
@@ -214,6 +218,9 @@ function validateOrderPayload(array $payload): array
     if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         throw new ClientError('Invalid email', 400);
     }
+
+    $paymentMethod = resolvePaymentMethod($payload['paymentMethod'] ?? null);
+    [$paymentStatus, $paymentProvider] = initialPaymentState($paymentMethod);
 
     $validatedItems = [];
     $serverSubtotal = 0;
@@ -276,7 +283,7 @@ function validateOrderPayload(array $payload): array
         throw new ClientError('price mismatch', 400);
     }
 
-    $coupon = resolveCheckoutCoupon($cart['coupon'] ?? null, $serverSubtotal);
+    $coupon = resolveCheckoutCoupon($cart['coupon'] ?? null, $serverSubtotal, $couponOverride);
     $discountCents = $coupon['discount_cents'];
     $totalCents = max(0, $serverSubtotal - $discountCents);
 
@@ -292,13 +299,65 @@ function validateOrderPayload(array $payload): array
         'discount_cents' => $discountCents,
         'total_cents' => $totalCents,
         'coupon_code' => $coupon['code'],
+        'payment_method' => $paymentMethod,
+        'payment_status' => $paymentStatus,
+        'payment_provider' => $paymentProvider,
+        'fulfillment_status' => 'new',
+        'admin_note' => '',
         'currency' => cleanString($payload['currency'] ?? 'USD', 8) ?: 'USD',
         'cart_key' => cleanString($payload['cartKey'] ?? '', 80),
         'page' => cleanString($payload['page'] ?? '', 500),
     ];
 }
 
-function resolveCheckoutCoupon(mixed $coupon, int $subtotalCents): array
+function resolvePaymentMethod(mixed $rawMethod): string
+{
+    $allowed = ['online', 'cod', 'manual'];
+    $configured = configuredPaymentMethods();
+    $method = strtolower(cleanString($rawMethod ?? '', 20));
+
+    if ($method === '') {
+        if (count($configured) > 0) {
+            $default = strtolower(cleanString(DEFAULT_PAYMENT_METHOD, 20));
+            return in_array($default, $configured, true) ? $default : $configured[0];
+        }
+        return strtolower(cleanString(PAYMENT_PROVIDER, 20)) !== '' ? 'online' : 'manual';
+    }
+
+    if (!in_array($method, $allowed, true)) {
+        throw new ClientError('Invalid payment method', 400);
+    }
+    if (count($configured) > 0 && !in_array($method, $configured, true)) {
+        throw new ClientError('Payment method unavailable', 400);
+    }
+    if ($method === 'online' && strtolower(cleanString(PAYMENT_PROVIDER, 20)) === '') {
+        throw new ClientError('Online payments unavailable', 400);
+    }
+    return $method;
+}
+
+function configuredPaymentMethods(): array
+{
+    $allowed = ['online', 'cod', 'manual'];
+    $methods = [];
+    foreach (ENABLED_PAYMENT_METHODS as $method) {
+        $clean = strtolower(cleanString($method, 20));
+        if (in_array($clean, $allowed, true) && !in_array($clean, $methods, true)) {
+            $methods[] = $clean;
+        }
+    }
+    return $methods;
+}
+
+function initialPaymentState(string $paymentMethod): array
+{
+    if ($paymentMethod === 'cod') {
+        return ['cod_due', 'cod'];
+    }
+    return ['pending', null];
+}
+
+function resolveCheckoutCoupon(mixed $coupon, int $subtotalCents, ?callable $couponOverride = null): array
 {
     $empty = ['code' => null, 'discount_cents' => 0];
     if (!is_array($coupon)) {
@@ -311,7 +370,7 @@ function resolveCheckoutCoupon(mixed $coupon, int $subtotalCents): array
     }
 
     try {
-        $validated = validateCoupon($code, $subtotalCents);
+        $validated = validateCoupon($code, $subtotalCents, $couponOverride);
     } catch (ClientError) {
         return $empty;
     }
@@ -322,9 +381,12 @@ function resolveCheckoutCoupon(mixed $coupon, int $subtotalCents): array
     ];
 }
 
-function validateCoupon(string $code, int $subtotalCents): array
+function validateCoupon(string $code, int $subtotalCents, ?callable $couponOverride = null): array
 {
     if (!isset(COUPONS[$code])) {
+        throw new ClientError('Coupon not valid.', 400);
+    }
+    if ($couponOverride !== null && !$couponOverride($code)) {
         throw new ClientError('Coupon not valid.', 400);
     }
 
@@ -391,10 +453,14 @@ function db(): PDO
     ensureColumn($pdo, 'orders', 'discount_cents', 'INTEGER NOT NULL DEFAULT 0');
     ensureColumn($pdo, 'orders', 'total_cents', 'INTEGER NOT NULL DEFAULT 0');
     ensureColumn($pdo, 'orders', 'coupon_code', 'TEXT');
+    ensureColumn($pdo, 'orders', 'payment_method', 'TEXT NOT NULL DEFAULT "manual"');
     ensureColumn($pdo, 'orders', 'payment_status', 'TEXT NOT NULL DEFAULT "pending"');
     ensureColumn($pdo, 'orders', 'payment_provider', 'TEXT');
     ensureColumn($pdo, 'orders', 'payment_session_id', 'TEXT');
     ensureColumn($pdo, 'orders', 'paid_at', 'TEXT');
+    ensureColumn($pdo, 'orders', 'fulfillment_status', 'TEXT NOT NULL DEFAULT "new"');
+    ensureColumn($pdo, 'orders', 'admin_note', 'TEXT NOT NULL DEFAULT ""');
+    ensureColumn($pdo, 'orders', 'updated_at', 'TEXT');
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS order_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -427,6 +493,13 @@ function db(): PDO
             next_attempt_at TEXT NOT NULL,
             last_error TEXT,
             created_at TEXT NOT NULL
+        )'
+    );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS coupon_overrides (
+            code TEXT PRIMARY KEY,
+            active INTEGER NOT NULL,
+            updated_at TEXT NOT NULL
         )'
     );
     seedInventory($pdo);
@@ -470,13 +543,16 @@ function storeOrder(PDO $pdo, array $order): string
             'INSERT INTO orders (
                 id, cart_key, currency, customer_name, customer_phone, customer_email,
                 customer_address, subtotal_cents, discount_cents, total_cents, coupon_code,
-                payment_status, payment_provider, payment_session_id, paid_at, page, ip_hash, created_at
+                payment_method, payment_status, payment_provider, payment_session_id, paid_at,
+                fulfillment_status, admin_note, page, ip_hash, created_at, updated_at
             ) VALUES (
                 :id, :cart_key, :currency, :customer_name, :customer_phone, :customer_email,
                 :customer_address, :subtotal_cents, :discount_cents, :total_cents, :coupon_code,
-                :payment_status, :payment_provider, :payment_session_id, :paid_at, :page, :ip_hash, :created_at
+                :payment_method, :payment_status, :payment_provider, :payment_session_id, :paid_at,
+                :fulfillment_status, :admin_note, :page, :ip_hash, :created_at, :updated_at
             )'
         );
+        $createdAt = gmdate('c');
         $insertOrder->execute([
             ':id' => $orderId,
             ':cart_key' => $order['cart_key'],
@@ -489,13 +565,17 @@ function storeOrder(PDO $pdo, array $order): string
             ':discount_cents' => $order['discount_cents'],
             ':total_cents' => $order['total_cents'],
             ':coupon_code' => $order['coupon_code'],
-            ':payment_status' => 'pending',
-            ':payment_provider' => null,
+            ':payment_method' => $order['payment_method'],
+            ':payment_status' => $order['payment_status'],
+            ':payment_provider' => $order['payment_provider'],
             ':payment_session_id' => null,
             ':paid_at' => null,
+            ':fulfillment_status' => $order['fulfillment_status'],
+            ':admin_note' => $order['admin_note'],
             ':page' => $order['page'],
             ':ip_hash' => hash('sha256', clientIp()),
-            ':created_at' => gmdate('c'),
+            ':created_at' => $createdAt,
+            ':updated_at' => $createdAt,
         ]);
 
         $insertItem = $pdo->prepare(
@@ -592,6 +672,9 @@ function orderSummary(string $orderId, array $order): array
         'discount_cents' => $order['discount_cents'],
         'total_cents' => $order['total_cents'],
         'coupon_code' => $order['coupon_code'],
+        'payment_method' => $order['payment_method'],
+        'payment_status' => $order['payment_status'],
+        'fulfillment_status' => $order['fulfillment_status'],
         'items' => array_map(static fn(array $item): array => [
             'id' => $item['id'],
             'name' => $item['name'],
@@ -661,6 +744,9 @@ function updateOrderPayment(PDO $pdo, string $orderId, array $payment): void
 
 function createPaymentHandoff(array $order, string $orderId, ?callable $http = null): ?array
 {
+    if (($order['payment_method'] ?? 'manual') !== 'online') {
+        return null;
+    }
     $provider = strtolower(cleanString(PAYMENT_PROVIDER, 20));
     if ($provider === '' || $order['total_cents'] <= 0) {
         return null;
@@ -674,6 +760,21 @@ function createPaymentHandoff(array $order, string $orderId, ?callable $http = n
         return createPayPalOrder($order, $orderId, $http);
     }
     throw new RuntimeException('Unsupported payment provider.');
+}
+
+function checkoutCouponOverrideActive($pdo, string $code): bool
+{
+    try {
+        $statement = $pdo->prepare('SELECT active FROM coupon_overrides WHERE code = :code LIMIT 1');
+        $statement->execute([':code' => strtoupper(cleanString($code, 40))]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            return true;
+        }
+        return (int)($row['active'] ?? 1) === 1;
+    } catch (Throwable) {
+        return true;
+    }
 }
 
 function createStripeCheckoutSession(array $order, string $orderId, callable $http): array

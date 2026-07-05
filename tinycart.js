@@ -12,6 +12,8 @@
     apiKey: null,
     accent: null,
     coupons: {},
+    paymentMethods: [],
+    defaultPaymentMethod: "",
     allowedOptionKeys: null,
     maxItems: 100,
     maxStorageBytes: 50 * 1024,
@@ -39,6 +41,10 @@
     discount: "Discount",
     total: "Total",
     checkout: "Checkout",
+    paymentMethod: "Payment method",
+    paymentOnline: "Pay online",
+    paymentCod: "Cash on delivery",
+    paymentManual: "Manual payment",
     processing: "Processing...",
     empty: "Your cart is empty.",
     remove: "Remove",
@@ -85,6 +91,7 @@
     discount: null,
     toast: null,
     form: null,
+    paymentMethodInputs: [],
     couponInput: null,
     couponStatus: null,
     lastFocused: null,
@@ -133,6 +140,25 @@
   function safeEmail(value) {
     const email = safeString(value, 254);
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+  }
+
+  function normalizePaymentMethods(methods) {
+    const allowed = ["online", "cod", "manual"];
+    const unique = [];
+    (Array.isArray(methods) ? methods : []).forEach((method) => {
+      const clean = safeString(method, 20).toLowerCase();
+      if (allowed.includes(clean) && !unique.includes(clean)) unique.push(clean);
+    });
+    return unique;
+  }
+
+  function resolveDefaultPaymentMethod(methods, preferred) {
+    const clean = safeString(preferred, 20).toLowerCase();
+    return methods.includes(clean) ? clean : (methods[0] || "");
+  }
+
+  function paymentLabel(method) {
+    return text(method === "cod" ? "paymentCod" : method === "manual" ? "paymentManual" : "paymentOnline");
   }
 
   function toCents(value) {
@@ -502,7 +528,7 @@
 .tc-count{display:grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#fff;color:#111;font-size:12px}
 .tc-backdrop{position:fixed;inset:0;z-index:2147483001;display:none;background:rgba(0,0,0,.28);padding:0}
 .tc-backdrop[aria-hidden=false]{display:block}
-.tc-dialog{position:fixed;inset:auto 12px 12px 12px;max-height:calc(100dvh - 24px);display:flex;flex-direction:column;background:var(--tc-bg,#fff);border:1px solid var(--tc-line,#ddd);border-radius:var(--tc-radius,10px);box-shadow:0 18px 60px rgba(0,0,0,.18);overflow:hidden}
+.tc-dialog{position:fixed;inset:auto 12px 12px 12px;max-height:calc(100dvh - 24px);display:flex;flex-direction:column;padding:0;background:var(--tc-bg,#fff);border:1px solid var(--tc-line,#ddd);border-radius:var(--tc-radius,10px);box-shadow:0 18px 60px rgba(0,0,0,.18);overflow:hidden}
 .tc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px 10px;border-bottom:1px solid var(--tc-line,#ddd)}
 .tc-title{margin:0;font-size:16px;line-height:1.2;font-weight:800;letter-spacing:0}
 .tc-iconbtn{display:grid;place-items:center;width:38px;height:38px;border:1px solid var(--tc-line,#ddd);border-radius:999px;background:var(--tc-bg,#fff);color:var(--tc-fg,#111);cursor:pointer}
@@ -535,6 +561,10 @@
 .tc-coupon-status{min-height:16px;margin:6px 0 0;color:var(--tc-muted,#666);font-size:12px}
 .tc-form{display:grid;gap:8px;margin-top:8px;padding-top:10px;border-top:1px solid var(--tc-line,#ddd)}
 .tc-field span{display:block;margin:0 0 6px;font-size:12px;font-weight:750;color:var(--tc-muted,#333)}
+.tc-payment{display:grid;gap:6px;padding-bottom:2px}
+.tc-payment>span{font-size:12px;font-weight:750;color:var(--tc-muted,#333)}
+.tc-payment label{display:flex;align-items:center;gap:8px;min-height:34px;border:1px solid var(--tc-line,#ddd);border-radius:999px;padding:0 10px;font-size:13px;font-weight:650}
+.tc-payment input{width:14px;height:14px;margin:0;accent-color:var(--tc-accent,#111)}
 .tc-foot{padding:10px 16px 12px;border-top:1px solid var(--tc-line,#ddd);background:var(--tc-bg,#fff)}
 .tc-toast{position:fixed;left:16px;right:16px;bottom:76px;z-index:2147483002;display:none;padding:12px 14px;border:1px solid var(--tc-accent,#111);border-radius:calc(var(--tc-radius,10px)*1.1);background:var(--tc-accent,#111);color:#fff;text-align:center;font:700 13px/1.35 var(--tc-font,Inter,system-ui,sans-serif);box-shadow:0 14px 42px rgba(0,0,0,.2)}
 .tc-toast[aria-hidden=false]{display:block;animation:tc-slide .2s ease}
@@ -605,6 +635,8 @@
 
     const form = create("form", "tc-form");
     form.noValidate = true;
+    const payment = paymentControls();
+    if (payment) form.append(payment);
     form.append(
       field(text("name"), "name", "text", true),
       field(text("phone"), "phone", "tel", true),
@@ -648,6 +680,29 @@
     state.form = form;
     state.couponInput = couponInput;
     state.couponStatus = couponStatus;
+  }
+
+  function paymentControls() {
+    state.paymentMethodInputs = [];
+    const methods = state.config.paymentMethods || [];
+    if (methods.length < 2) return null;
+    const wrap = create("div", "tc-payment");
+    wrap.setAttribute("role", "radiogroup");
+    wrap.setAttribute("aria-label", text("paymentMethod"));
+    wrap.append(create("span", "", text("paymentMethod")));
+    methods.forEach((method) => {
+      const label = create("label");
+      const input = create("input");
+      input.type = "radio";
+      input.name = "paymentMethod";
+      input.value = method;
+      input.checked = method === state.config.defaultPaymentMethod;
+      label.append(input, create("span", "", paymentLabel(method)));
+      if (label.textContent === "") label.textContent = paymentLabel(method);
+      wrap.append(label);
+      state.paymentMethodInputs.push(input);
+    });
+    return wrap;
   }
 
   function field(label, name, type, required) {
@@ -857,6 +912,13 @@
     };
   }
 
+  function selectedPaymentMethod() {
+    const methods = state.config.paymentMethods || [];
+    if (!methods.length) return "";
+    const checked = (state.paymentMethodInputs || []).find((input) => input.checked);
+    return checked ? checked.value : state.config.defaultPaymentMethod;
+  }
+
   async function checkout(event) {
     event.preventDefault();
     if (state.checkoutPending) return;
@@ -886,6 +948,8 @@
       page: win.location.href,
       createdAt: new Date().toISOString()
     };
+    const paymentMethod = selectedPaymentMethod();
+    if (paymentMethod) payload.paymentMethod = paymentMethod;
 
     try {
       let result;
@@ -1077,6 +1141,8 @@
     state.config.accent = state.config.accent && /^#[0-9a-f]{3,8}$/i.test(state.config.accent) ? readableAccent(state.config.accent) : "";
     state.config.apiKey = safeString(state.config.apiKey || "", 300);
     state.config.catalogUrl = safeString(state.config.catalogUrl || "", 500);
+    state.config.paymentMethods = normalizePaymentMethods(state.config.paymentMethods);
+    state.config.defaultPaymentMethod = resolveDefaultPaymentMethod(state.config.paymentMethods, state.config.defaultPaymentMethod);
     state.config.maxItems = clamp(Number.parseInt(state.config.maxItems, 10) || DEFAULTS.maxItems, 1, 250);
     state.config.maxStorageBytes = clamp(Number.parseInt(state.config.maxStorageBytes, 10) || DEFAULTS.maxStorageBytes, 4096, 200 * 1024);
     state.config.maxQueueItems = clamp(Number.parseInt(state.config.maxQueueItems, 10) || DEFAULTS.maxQueueItems, 1, 50);

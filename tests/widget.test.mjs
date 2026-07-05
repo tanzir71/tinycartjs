@@ -51,6 +51,7 @@ class FakeElement {
     this.textContent = "";
     this.value = "";
     this.disabled = false;
+    this.checked = false;
     this.required = false;
     this.type = "";
     this.name = "";
@@ -213,6 +214,7 @@ class FakeFormData {
   constructor(form) {
     this.fields = new Map();
     form.querySelectorAll("input,textarea").forEach((input) => {
+      if ((input.type || "").toLowerCase() === "radio" && !input.checked) return;
       if (input.name) this.fields.set(input.name, input.value || "");
     });
   }
@@ -536,6 +538,40 @@ test("catalogUrl hydrates product truth and disables out-of-stock buttons", asyn
   assert.equal(item.name, "Server Tee");
   assert.equal(item.priceCents, 2400);
   assert.equal(item.stock, 4);
+});
+
+test("renders payment choices and submits the selected payment method", async () => {
+  let checkoutPayload;
+  const { window, document } = createHarness({
+    scriptConfig: {
+      paymentMethods: ["online", "cod"],
+      defaultPaymentMethod: "cod"
+    },
+    fetch: async (_url, options) => {
+      checkoutPayload = JSON.parse(options.body);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, order_id: "TCOD123", pay_url: null })
+      };
+    }
+  });
+
+  const radios = document.querySelectorAll('input[name="paymentMethod"]');
+  assert.equal(radios.length, 2);
+  assert.equal(radios[0].value, "online");
+  assert.equal(radios[1].value, "cod");
+  assert.equal(radios[1].checked, true);
+  assert.ok(Array.from(document.querySelector(".tc-payment").querySelectorAll("label"))
+    .some((label) => /Cash on delivery/.test(label.textContent)));
+
+  window.tinycart.add({ id: "tee-001", name: "TinyCart Tee", price: "24.00", qty: 1 });
+  fillCheckoutForm(document);
+  document.querySelector(".tc-form").dispatchEvent(new FakeEvent("submit"));
+  await flushAsync();
+
+  assert.equal(checkoutPayload.paymentMethod, "cod");
+  assert.equal(document.querySelector(".tc-toast").textContent, "Order received.");
 });
 
 test("keeps checkout locked while pending and maps HTTP failures to helpful messages", async () => {

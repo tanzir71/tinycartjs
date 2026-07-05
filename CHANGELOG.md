@@ -7,7 +7,7 @@ All notable TinyCart changes are documented here.
 - Added server-validated coupons with checkout revalidation.
 - Added optional Stripe and PayPal payment handoff plus paid-order handlers.
 - Added cacheable server catalog hydration, i18n strings, locale-aware money formatting, theme tokens, and versioned cart persistence.
-- Added atomic SQLite inventory reservation, signed order webhooks, best-effort order email, and a read-only admin order view.
+- Added atomic SQLite inventory reservation, signed order webhooks, best-effort order email, COD checkout, and an authenticated ops dashboard.
 - Expanded automated endpoint, widget, payment, and static tests.
 
 ## 0.1.0 - 2026-05-14

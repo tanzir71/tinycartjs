@@ -165,6 +165,40 @@ test("checkout recomputes coupon discounts and ignores forged coupons", async ()
   assert.equal(forged.coupon_code, null);
 });
 
+test("checkout and coupon validation respect admin coupon overrides", () => {
+  const checkout = runCheckoutSnippet(`
+$order = validateOrderPayload($payload, function (string $code): bool {
+    return false;
+});
+echo json_encode([
+    'discount_cents' => $order['discount_cents'],
+    'coupon_code' => $order['coupon_code'],
+    'total_cents' => $order['total_cents']
+], JSON_UNESCAPED_SLASHES);
+`, checkoutPayload({
+      code: "SAVE10",
+      type: "percent",
+      value: 10,
+      amount: 240
+  }));
+
+  assert.deepEqual(checkout, {
+    discount_cents: 0,
+    coupon_code: null,
+    total_cents: 2400
+  });
+
+  assert.throws(
+    () => runCouponSnippet(`
+$coupon = couponValidate('SAVE10', 2400, function (string $code): bool {
+    return false;
+});
+echo json_encode($coupon, JSON_UNESCAPED_SLASHES);
+`),
+    /Coupon not valid/
+  );
+});
+
 test("checkout rejects price tampering before storing orders", () => {
   assert.throws(
     () => validateCheckoutPayload({
@@ -426,6 +460,101 @@ echo json_encode([
   assert.doesNotMatch(result.html, /<img src=x/);
 });
 
+test("admin dashboard actions require CSRF and update order operations safely", () => {
+  const result = runAdminSnippet(`
+class FakeStatement {
+    public array $params = [];
+    public function execute(array $params = []): void { $this->params = $params; }
+    public function fetchAll(): array { return []; }
+    public function rowCount(): int { return 1; }
+}
+class FakePdo {
+    public array $calls = [];
+    public function prepare(string $sql): FakeStatement {
+        $statement = new FakeStatement();
+        $this->calls[] = ['sql' => $sql, 'statement' => $statement];
+        return $statement;
+    }
+}
+$_SESSION = ['tc_admin_csrf' => 'known-token'];
+$_POST = ['_csrf' => 'wrong-token'];
+$csrfStatus = null;
+try {
+    requireAdminCsrf();
+} catch (AdminError $error) {
+    $csrfStatus = $error->statusCode;
+}
+$_POST = ['_csrf' => 'known-token'];
+requireAdminCsrf();
+
+$invalidPaymentStatus = null;
+try {
+    updateAdminOrderStatus(new FakePdo(), 'TCOD123', 'stolen', 'packed', '');
+} catch (AdminError $error) {
+    $invalidPaymentStatus = $error->statusCode;
+}
+
+$pdo = new FakePdo();
+updateAdminOrderStatus($pdo, 'TCOD123', 'paid', 'fulfilled', '=call me');
+markAdminCodCollected($pdo, 'TCOD123');
+updateAdminInventoryStock($pdo, 'tee-001', 17);
+setAdminCouponOverride($pdo, 'SAVE10', false);
+retryAdminWebhook($pdo, 9);
+
+echo json_encode([
+    'csrf_status' => $csrfStatus,
+    'invalid_payment_status' => $invalidPaymentStatus,
+    'call_count' => count($pdo->calls),
+    'first_sql' => $pdo->calls[0]['sql'],
+    'first_params' => $pdo->calls[0]['statement']->params,
+    'cod_sql' => $pdo->calls[1]['sql'],
+    'cod_params' => $pdo->calls[1]['statement']->params,
+    'inventory_sql' => $pdo->calls[2]['sql'],
+    'coupon_sql' => $pdo->calls[3]['sql'],
+    'retry_sql' => $pdo->calls[4]['sql']
+], JSON_UNESCAPED_SLASHES);
+`);
+
+  assert.equal(result.csrf_status, 403);
+  assert.equal(result.invalid_payment_status, 400);
+  assert.equal(result.call_count, 5);
+  assert.match(result.first_sql, /^UPDATE orders/i);
+  assert.equal(result.first_params[":payment_status"], "paid");
+  assert.equal(result.first_params[":fulfillment_status"], "fulfilled");
+  assert.equal(result.first_params[":admin_note"], "=call me");
+  assert.match(result.cod_sql, /payment_status = 'paid'/);
+  assert.equal(result.cod_params[":id"], "TCOD123");
+  assert.match(result.inventory_sql, /UPDATE inventory/i);
+  assert.match(result.coupon_sql, /coupon_overrides/i);
+  assert.match(result.retry_sql, /webhook_deliveries/i);
+});
+
+test("admin CSV export escapes formula-like cells and includes filtered order fields", () => {
+  const result = runAdminSnippet(`
+$csv = renderAdminCsv([
+    [
+        'id' => '=2+3',
+        'created_at' => '2026-07-04T00:00:00+00:00',
+        'customer_name' => '+Ada',
+        'customer_email' => 'ada@example.com',
+        'customer_phone' => '+15551234567',
+        'payment_method' => 'cod',
+        'payment_status' => 'cod_due',
+        'fulfillment_status' => 'new',
+        'total_cents' => 2400,
+        'currency' => 'USD',
+        'coupon_code' => 'SAVE10',
+    ]
+]);
+echo json_encode(['csv' => $csv], JSON_UNESCAPED_SLASHES);
+`);
+
+  assert.match(result.csv, /Order ID,Created,Customer,Email,Phone,Payment Method,Payment Status,Fulfillment Status,Total,Coupon/);
+  assert.match(result.csv, /'=2\+3/);
+  assert.match(result.csv, /'\+Ada/);
+  assert.match(result.csv, /cod_due/);
+});
+
 test("checkout rate-limits repeated requests", async () => {
   await withServer(async (base) => {
     let lastResponse;
@@ -451,6 +580,57 @@ echo json_encode(['handoff' => $handoff, 'called' => $called], JSON_UNESCAPED_SL
 `, checkoutPayload(null));
 
   assert.deepEqual(handoff, { handoff: null, called: false });
+});
+
+test("legacy checkout defaults to manual payment when no provider is configured", () => {
+  const result = runCheckoutSnippet(`
+$order = validateOrderPayload($payload);
+$handoff = createPaymentHandoff($order, 'TMANUAL123', function () {
+    throw new RuntimeException('provider should not be called');
+});
+echo json_encode([
+    'payment_method' => $order['payment_method'],
+    'payment_status' => $order['payment_status'],
+    'payment_provider' => $order['payment_provider'],
+    'handoff' => $handoff
+], JSON_UNESCAPED_SLASHES);
+`, checkoutPayload(null));
+
+  assert.deepEqual(result, {
+    payment_method: "manual",
+    payment_status: "pending",
+    payment_provider: null,
+    handoff: null
+  });
+});
+
+test("cash on delivery checkout stores cod due status and skips provider handoff", () => {
+  const result = runCheckoutSnippet(`
+$order = validateOrderPayload($payload);
+$called = false;
+$handoff = createPaymentHandoff($order, 'TCOD123', function () use (&$called) {
+    $called = true;
+    return ['status' => 200, 'body' => '{}'];
+});
+echo json_encode([
+    'payment_method' => $order['payment_method'],
+    'payment_status' => $order['payment_status'],
+    'payment_provider' => $order['payment_provider'],
+    'handoff' => $handoff,
+    'called' => $called
+], JSON_UNESCAPED_SLASHES);
+`, { ...checkoutPayload(null), paymentMethod: "cod" }, [
+    ["const ENABLED_PAYMENT_METHODS = [];", "const ENABLED_PAYMENT_METHODS = ['online', 'cod'];"],
+    ["const PAYMENT_PROVIDER = '';", "const PAYMENT_PROVIDER = 'stripe';"]
+  ]);
+
+  assert.deepEqual(result, {
+    payment_method: "cod",
+    payment_status: "cod_due",
+    payment_provider: "cod",
+    handoff: null,
+    called: false
+  });
 });
 
 test("stripe payment handoff posts the server-recomputed total", () => {
@@ -557,6 +737,30 @@ function runCheckoutSnippet(snippet, payload, replacements = []) {
     writeFileSync(join(fixture, "run.php"), `<?php
 require __DIR__ . '/checkout_lib.php';
 $payload = json_decode(file_get_contents(__DIR__ . '/payload.json'), true);
+${snippet}
+`);
+
+    const result = spawnSync("php", ["run.php"], {
+      cwd: fixture,
+      encoding: "utf8"
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    return JSON.parse(result.stdout);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+}
+
+function runCouponSnippet(snippet, replacements = []) {
+  const fixture = mkdtempSync(join(tmpdir(), "tinycart-coupon-lib-"));
+  try {
+    let source = readFileSync(join(root, "coupon.php"), "utf8").replace(/\r?\ncouponMain\(\);\r?\n/, "\n");
+    for (const [from, to] of replacements) {
+      source = source.replace(from, to);
+    }
+    writeFileSync(join(fixture, "coupon_lib.php"), source);
+    writeFileSync(join(fixture, "run.php"), `<?php
+require __DIR__ . '/coupon_lib.php';
 ${snippet}
 `);
 
