@@ -268,7 +268,7 @@ Byte budget note: before B tasks, do B0.
   - [ ] All tests pass unchanged; public API identical (document surface in a comment).
   - [ ] `wc -c tinycart.js` ≤ 45,000 bytes.
 
-- [ ] **B1. Order-success screen (replace success toast).**
+- [x] **B1. Order-success screen (replace success toast).**
   Files: `tinycart.js`.
   After a successful checkout, swap the dialog body for a confirmation view:
   check icon (inline SVG path), "Order placed", order ID in a monospace box with

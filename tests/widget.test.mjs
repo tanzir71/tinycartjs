@@ -544,6 +544,7 @@ test("catalogUrl hydrates product truth and disables out-of-stock buttons", asyn
 
 test("renders payment choices and submits the selected payment method", async () => {
   let checkoutPayload;
+  let copied = "";
   const { window, document } = createHarness({
     scriptConfig: {
       paymentMethods: ["online", "cod"],
@@ -558,6 +559,11 @@ test("renders payment choices and submits the selected payment method", async ()
       };
     }
   });
+  window.navigator.clipboard = {
+    writeText: async (value) => {
+      copied = value;
+    }
+  };
 
   const radios = document.querySelectorAll('input[name="paymentMethod"]');
   assert.equal(radios.length, 2);
@@ -573,7 +579,49 @@ test("renders payment choices and submits the selected payment method", async ()
   await flushAsync();
 
   assert.equal(checkoutPayload.paymentMethod, "cod");
-  assert.equal(document.querySelector(".tc-toast").textContent, "Order received.");
+  assert.equal(document.querySelector(".tc-success-title").textContent, "Order placed");
+  assert.equal(document.activeElement, document.querySelector(".tc-success-title"));
+  assert.equal(document.querySelector(".tc-order-id").textContent, "TCOD123");
+  assert.equal(document.querySelector(".tc-success-note").textContent, "Pay $24.00 in cash on delivery.");
+  assert.equal(window.tinycart.getCart().totals.count, 0);
+
+  document.querySelector(".tc-copy").dispatchEvent(new FakeEvent("click"));
+  await flushAsync();
+  assert.equal(copied, "TCOD123");
+  assert.equal(document.querySelector(".tc-copy").textContent, "Copied");
+
+  document.querySelector(".tc-continue").dispatchEvent(new FakeEvent("click"));
+  assert.equal(document.querySelector(".tc-backdrop").getAttribute("aria-hidden"), "true");
+  document.querySelector(".tc-float").dispatchEvent(new FakeEvent("click"));
+  assert.equal(document.querySelector(".tc-empty").textContent, "Your cart is empty.");
+});
+
+test("online checkout renders payment handoff before redirect", async () => {
+  let assigned = "";
+  const { window, document } = createHarness({
+    scriptConfig: {
+      paymentMethods: ["online"],
+      defaultPaymentMethod: "online"
+    },
+    fetch: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, order_id: "TONLINE9", pay_url: "https://pay.example/checkout" })
+    })
+  });
+  window.location.assign = (url) => {
+    assigned = url;
+  };
+
+  window.tinycart.add({ id: "tee-001", name: "TinyCart Tee", price: "24.00", qty: 1 });
+  fillCheckoutForm(document);
+  document.querySelector(".tc-form").dispatchEvent(new FakeEvent("submit"));
+  await flushAsync();
+
+  assert.equal(document.querySelector(".tc-success-title").textContent, "Order placed");
+  assert.equal(document.querySelector(".tc-order-id").textContent, "TONLINE9");
+  assert.equal(document.querySelector(".tc-success-note").textContent, "Complete payment on the next page.");
+  assert.equal(assigned, "https://pay.example/checkout");
 });
 
 test("keeps checkout locked while pending and maps HTTP failures to helpful messages", async () => {
