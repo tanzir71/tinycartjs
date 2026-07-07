@@ -286,12 +286,11 @@ assert.ok(index.includes("max-width: 760px"), "landing should use a compact hero
 assert.ok(index.includes("clamp(40px, 6.4vw, 72px)"), "landing headline should avoid oversized display text");
 assert.ok(index.includes("clamp(44px, 7vw, 76px)"), "landing sections should keep tighter vertical rhythm");
 assert.ok(index.includes("scrollbar-color: var(--fg) var(--soft)"), "landing scrollbar should match the site design");
-const heroDiagram = index.match(/<svg class="tc-diagram"[\s\S]*?<\/svg>/)?.[0] ?? "";
-assert.ok(heroDiagram, "hero should use the refined TinyCart diagram");
-assert.ok(heroDiagram.includes('vector-effect="non-scaling-stroke"'), "hero diagram should keep crisp non-scaling hairlines");
-assert.doesNotMatch(heroDiagram, /stroke-width="2"/, "hero diagram should avoid thick mockup strokes");
-assert.doesNotMatch(heroDiagram, /stroke-dasharray/, "hero diagram should avoid dotted connector lines");
-assert.ok(heroDiagram.includes("TC/CART"), "hero diagram should read as a precise TinyCart schematic");
+assert.ok(index.includes("The $0, self-hosted cart."), "hero should use the trust-focused one-liner");
+assert.ok(index.includes('class="cart-proof"'), "hero should render a real cart replica instead of an abstract diagram");
+assert.ok(index.includes("Cash on delivery") && index.includes("SAVE10 applied"), "hero cart replica should show COD and an applied coupon");
+assert.ok(index.includes("v0.2.0") && index.includes("MIT") && index.includes("PHP 8+"), "hero should include release/license/runtime metadata");
+assert.ok(index.includes("img.shields.io/github/stars/tanzir71/tinycartjs") && index.includes('loading="lazy"'), "hero should include a lazy GitHub stars badge");
 for (const token of [
   "Cash, cards, and fulfilment in one quiet dashboard",
   "Payments",

@@ -174,6 +174,18 @@
     .stat span { display: block; margin-top: 6px; color: var(--faint); font: 700 11px/1.25 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; }
 
     .actions { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-6); }
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--s-3);
+      margin-top: var(--s-4);
+      color: var(--faint);
+      font: 800 12px/1.2 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .hero-meta img { display: block; height: 20px; width: auto; }
     .btn {
       display: inline-flex;
       align-items: center;
@@ -225,18 +237,95 @@
     /* ---------- Mockup ---------- */
     .mockup {
       position: relative;
-      aspect-ratio: 4 / 5;
-      display: grid;
-      place-items: center;
+      display: block;
       background: var(--soft);
       border: 1px solid var(--line);
+      padding: clamp(14px, 2vw, 22px);
     }
-    .mockup .tc-diagram {
-      width: min(78%, 320px);
-      height: auto;
-      filter: drop-shadow(0 12px 22px rgba(0,0,0,0.07));
+    .cart-proof {
+      background: #fff;
+      border: 1px solid var(--ink);
+      box-shadow: 10px 10px 0 rgba(7, 7, 7, 0.08);
     }
-    .tc-diagram [stroke] { vector-effect: non-scaling-stroke; }
+    .cart-proof-head,
+    .cart-proof-row,
+    .cart-proof-line,
+    .cart-proof-total {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s-3);
+    }
+    .cart-proof-head {
+      padding: var(--s-4);
+      border-bottom: 1px solid var(--line);
+    }
+    .cart-proof-head strong { font-size: 17px; }
+    .cart-proof-close {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--line);
+      font: 800 18px/1 var(--mono);
+    }
+    .cart-proof-body { padding: var(--s-4); }
+    .cart-proof-row + .cart-proof-row { margin-top: var(--s-3); }
+    .cart-proof-thumb {
+      flex: 0 0 44px;
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(135deg, transparent 45%, var(--line) 46% 54%, transparent 55%),
+        var(--soft);
+    }
+    .cart-proof-item {
+      flex: 1;
+      min-width: 0;
+    }
+    .cart-proof-item strong,
+    .cart-proof-total strong { display: block; font-size: 14px; }
+    .cart-proof-item span,
+    .cart-proof-line span,
+    .cart-proof-pay span { color: var(--muted); font-size: 12.5px; }
+    .cart-proof-price { font: 800 13px/1 var(--mono); }
+    .cart-proof-box {
+      margin-top: var(--s-4);
+      padding: var(--s-3);
+      border: 1px solid var(--line);
+      background: var(--soft);
+    }
+    .cart-proof-line + .cart-proof-line { margin-top: 8px; }
+    .cart-proof-pay {
+      margin-top: var(--s-4);
+      padding: var(--s-3);
+      border: 1px solid var(--ink);
+      background: #fff;
+    }
+    .cart-proof-radio {
+      display: inline-grid;
+      place-items: center;
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      border: 1px solid var(--ink);
+      border-radius: 999px;
+      vertical-align: -3px;
+    }
+    .cart-proof-radio::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: inherit;
+      background: var(--accent);
+    }
+    .cart-proof-total {
+      margin-top: var(--s-4);
+      padding-top: var(--s-4);
+      border-top: 1px solid var(--ink);
+    }
+    .cart-proof-total strong:last-child { font: 900 22px/1 var(--mono); }
 
     /* ---------- Highlights ---------- */
     section { padding: clamp(44px, 7vw, 76px) 0; border-top: 1px solid var(--line); }
@@ -337,15 +426,40 @@
     @media (max-width: 820px) {
       .hero-grid, .demo-grid, .flow { grid-template-columns: 1fr; }
       .hero-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .mockup { aspect-ratio: 16 / 11; order: -1; }
+      .mockup { order: -1; }
       nav { gap: var(--s-4); }
       nav a:not(.ghost) { display: none; }
     }
     @media (max-width: 560px) {
+      .eyebrow { font-size: 10px; letter-spacing: 0.08em; }
+      .eyebrow::before { width: 20px; flex: 0 0 20px; }
+      h1 { font-size: 34px; line-height: 1.02; }
       .highlights { grid-template-columns: 1fr; }
       .hero-stats { grid-template-columns: 1fr; }
       .hero .actions { flex-direction: column; align-items: flex-start; }
       .hero .actions .btn { width: min(220px, 100%); }
+      .mockup { padding: 8px; overflow: hidden; }
+      .cart-proof { width: calc(100% - 8px); box-shadow: 6px 6px 0 rgba(7, 7, 7, 0.08); }
+      .cart-proof-row {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        align-items: center;
+      }
+      .cart-proof-price { grid-column: 2; margin-top: 4px; }
+      .cart-proof-line,
+      .cart-proof-total {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+      .cart-proof-line strong,
+      .cart-proof-total strong:last-child {
+        grid-column: 1;
+        justify-self: start;
+        margin-top: 4px;
+      }
+      .cart-proof-total strong:last-child { font-size: 18px; }
+      .cart-proof-pay strong { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+      .cart-proof-pay span:not(.cart-proof-radio) { display: block; margin-top: 4px; }
       .product { flex-direction: column; align-items: flex-start; }
     }
 
@@ -372,12 +486,16 @@
     <section class="hero wrap">
       <div class="hero-grid">
         <div>
-          <p class="eyebrow">v0.2 · free · open source · no build step</p>
-          <h1>Static storefronts with checkout ops included.</h1>
-          <p class="lead">Add product buttons to any page, let shoppers choose online payment or Cash on Delivery, and manage orders, stock, coupons, CSV exports, and webhook retries from a small PHP dashboard.</p>
+          <p class="eyebrow">Self-hosted commerce for tiny stores</p>
+          <h1>The cart small stores can run themselves.</h1>
+          <p class="lead">The $0, self-hosted cart. One JS file, a few PHP files, your own SQLite - works on $3/month shared hosting. No accounts, no % fees, cash-on-delivery built in.</p>
           <div class="actions">
             <a class="btn" href="#demo">Try the demo</a>
             <a class="btn secondary" href="docs.html">Read the docs</a>
+          </div>
+          <div class="hero-meta" aria-label="TinyCart project metadata">
+            <img src="https://img.shields.io/github/stars/tanzir71/tinycartjs?style=flat-square&amp;label=GitHub%20stars&amp;color=111111" alt="GitHub stars" width="118" height="20" loading="lazy">
+            <span>v0.2.0 / MIT / PHP 8+</span>
           </div>
           <div class="hero-stats" aria-label="TinyCart summary">
             <div class="stat"><strong>&lt;48KB</strong><span>small ceiling</span></div>
@@ -393,42 +511,37 @@
           </div>
         </div>
 
-        <div class="mockup" aria-label="TinyCart cart, COD, and ops flow schematic">
-          <svg class="tc-diagram" viewBox="0 0 360 320" role="img" aria-labelledby="mock-title" xmlns="http://www.w3.org/2000/svg">
-            <title id="mock-title">TinyCart cart, COD, and ops flow schematic</title>
-            <g fill="none" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke">
-              <rect x="28" y="34" width="212" height="238" rx="12" fill="#fff" stroke="#111" stroke-width="1.25"/>
-              <path d="M28 70h212M28 219h212" stroke="#dedede" stroke-width="1"/>
-              <circle cx="214" cy="52" r="10" fill="#fff" stroke="#111" stroke-width="1"/>
-              <path d="M210.5 48.5l7 7M217.5 48.5l-7 7" stroke="#111" stroke-width="1"/>
-
-              <rect x="50" y="91" width="26" height="26" rx="4" fill="#f7f7f7" stroke="#d7d7d7" stroke-width="1"/>
-              <path d="M89 96h74M89 110h50M183 98h31M89 124h35" stroke="#111" stroke-width="1"/>
-              <rect x="50" y="143" width="26" height="26" rx="4" fill="#f7f7f7" stroke="#d7d7d7" stroke-width="1"/>
-              <path d="M89 148h66M89 162h42M183 150h31M89 176h35" stroke="#111" stroke-width="1"/>
-              <rect x="50" y="188" width="72" height="26" rx="13" stroke="#111" stroke-width="1"/>
-              <path d="M61 201h6M76 201h20M107 201h6" stroke="#111" stroke-width="1"/>
-              <path d="M50 240h70M163 240h51M50 254h47M163 254h51" stroke="#111" stroke-width="1"/>
-
-              <circle cx="294" cy="101" r="31" fill="#fff" stroke="#111" stroke-width="1.25"/>
-              <path d="M280 91h7l4 21h20l3-14h-21M293 118h1M309 118h1" stroke="#111" stroke-width="1.2"/>
-              <circle cx="316" cy="78" r="10" fill="#111" stroke="#111" stroke-width="1"/>
-              <path d="M240 101h24M240 207h24" stroke="#111" stroke-width="1"/>
-
-              <rect x="264" y="176" width="68" height="66" rx="10" fill="#fff" stroke="#111" stroke-width="1.25"/>
-              <path d="M279 201h38M279 216h23M279 229h31" stroke="#111" stroke-width="1"/>
-              <path d="M294 241l-3 3-7-7" stroke="#111" stroke-width="1.1"/>
-            </g>
-            <g font-family="Inter, Arial, sans-serif" fill="#111">
-              <text x="50" y="56" font-size="11" font-weight="800" letter-spacing=".14em">TC/CART</text>
-              <text x="150" y="56" font-size="9" font-weight="700" letter-spacing=".12em" fill="#777">UI · 02</text>
-              <text x="50" y="84" font-size="8.5" font-weight="800" letter-spacing=".16em" fill="#777">ITEMS</text>
-              <text x="50" y="232" font-size="8.5" font-weight="800" letter-spacing=".16em" fill="#777">TOTAL</text>
-              <text x="294" y="82" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">3</text>
-              <text x="298" y="164" text-anchor="middle" font-size="8.5" font-weight="800" letter-spacing=".14em" fill="#777">OPS</text>
-              <text x="298" y="193" text-anchor="middle" font-size="8.5" font-weight="800" letter-spacing=".14em">COD DUE</text>
-            </g>
-          </svg>
+        <div class="mockup" aria-label="TinyCart open cart dialog preview">
+          <div class="cart-proof" role="img" aria-label="Open TinyCart showing two products, SAVE10 applied, Cash on delivery selected, and a fifty-two dollar twenty cent total">
+            <div class="cart-proof-head">
+              <strong>Your cart</strong>
+              <span class="cart-proof-close" aria-hidden="true">&times;</span>
+            </div>
+            <div class="cart-proof-body">
+              <div class="cart-proof-row">
+                <span class="cart-proof-thumb" aria-hidden="true"></span>
+                <span class="cart-proof-item"><strong>Linen market bag</strong><span>Qty 1 / natural</span></span>
+                <span class="cart-proof-price">$32.00</span>
+              </div>
+              <div class="cart-proof-row">
+                <span class="cart-proof-thumb" aria-hidden="true"></span>
+                <span class="cart-proof-item"><strong>Roasted coffee tin</strong><span>Qty 2 / 250g</span></span>
+                <span class="cart-proof-price">$26.00</span>
+              </div>
+              <div class="cart-proof-box">
+                <div class="cart-proof-line"><span>Subtotal</span><strong>$58.00</strong></div>
+                <div class="cart-proof-line"><span>SAVE10 applied</span><strong>-$5.80</strong></div>
+              </div>
+              <div class="cart-proof-pay">
+                <strong><span class="cart-proof-radio" aria-hidden="true"></span>Cash on delivery</strong>
+                <span>Pay when the courier arrives.</span>
+              </div>
+              <div class="cart-proof-total">
+                <strong>Total</strong>
+                <strong>$52.20</strong>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
