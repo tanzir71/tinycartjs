@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
@@ -274,6 +274,15 @@ const publicHtmlPages = [
   "gumroad-alternative.html",
   "stripe-payment-links-alternative.html"
 ];
+assert.ok(existsSync(join(root, "og-image.png")), "social preview image should exist");
+assert.ok(statSync(join(root, "og-image.png")).size > 1000, "social preview image should be a real PNG asset");
+for (const page of publicHtmlPages) {
+  const html = read(page);
+  assert.ok(!html.includes("fonts.googleapis.com") && !html.includes("fonts.gstatic.com"), `${page} should not request Google Fonts`);
+  for (const token of ['property="og:title"', 'property="og:description"', 'property="og:image"', 'name="twitter:card"']) {
+    assert.ok(html.includes(token), `${page} should include ${token}`);
+  }
+}
 for (const page of publicHtmlPages) {
   assert.ok(read(page).includes('rel="icon" type="image/svg+xml"'), `${page} should declare the TinyCart SVG favicon`);
 }

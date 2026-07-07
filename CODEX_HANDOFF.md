@@ -169,7 +169,7 @@ aesthetics. Every section added must show the product doing real work
   - [ ] Hero communicates "this is a cart you can see" within one viewport at 375px and 1280px.
   - [ ] Lighthouse performance ≥ 95 mobile for `index.html`.
 
-- [ ] **A2. Kill external font request + add OG/social meta.**
+- [x] **A2. Kill external font request + add OG/social meta.**
   Files: `index.html`, `docs.html`, `setup.html`, `security.html`,
   `compare.html`, all four `*-alternative.html`, `site.css`.
   Switch to `font-family: system-ui, ...` stack OR self-host a WOFF2 Inter
