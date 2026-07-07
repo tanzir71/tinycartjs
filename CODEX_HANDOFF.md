@@ -216,7 +216,7 @@ aesthetics. Every section added must show the product doing real work
   - [ ] Landing page shows the admin UI with realistic (fake) data.
   - [ ] Image lazy-loaded, `alt` text written, <120KB.
 
-- [ ] **A6. Honest pricing/fee comparison table on the landing page.**
+- [x] **A6. Honest pricing/fee comparison table on the landing page.**
   Files: `index.html`.
   Table: monthly cost at $500 / $2,000 / $10,000 of sales for TinyCart ($0 +
   your hosting), Snipcart (2% or $20 min), Gumroad (10%+50¢), Lemon Squeezy

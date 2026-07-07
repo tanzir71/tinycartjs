@@ -313,6 +313,9 @@ assert.ok(index.includes("img.shields.io/github/stars/tanzir71/tinycartjs") && i
 for (const token of ["ops-showcase", "COD collection", "CSV export", "Order queue", "cod_due", "paid", "shipped"]) {
   assert.ok(index.includes(token), `landing should show the admin ops showcase detail: ${token}`);
 }
+for (const token of ["fee-comparison", "Snipcart", "Gumroad", "Lemon Squeezy", "Payhip", "$52.50", "$210", "$1,050", "Gateway fees"]) {
+  assert.ok(index.includes(token), `landing should show the fee comparison detail: ${token}`);
+}
 for (const token of [
   "Cash, cards, and fulfilment in one quiet dashboard",
   "Payments",

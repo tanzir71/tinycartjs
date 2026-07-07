@@ -506,6 +506,31 @@ footer { border-top: 1px solid var(--line); }
 .home .ops-callout { background: #fff; padding: 18px; }
 .home .ops-callout strong { display: block; font-size: 15px; }
 .home .ops-callout p { margin: 8px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+.home .fee-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.home .fee-table th,
+.home .fee-table td {
+  padding: 16px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.home .fee-table th {
+  background: var(--soft);
+  color: var(--faint);
+  font: 800 11px/1.2 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.home .fee-table td { color: var(--muted); font-size: 14px; }
+.home .fee-table td strong { color: var(--fg); }
+.home .fee-table a { color: var(--fg); font-weight: 800; }
+.home .fee-note { max-width: 760px; margin: 14px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
 .home .shop {
   display: grid;
   gap: 1px;
@@ -610,6 +635,30 @@ footer { border-top: 1px solid var(--line); }
   .home .product { flex-direction: column; align-items: flex-start; }
   .home .ops-toolbar { align-items: flex-start; }
   .home .ops-row { grid-template-columns: 1fr; }
+  .home .fee-table,
+  .home .fee-table tbody,
+  .home .fee-table tr,
+  .home .fee-table td { display: block; }
+  .home .fee-table thead { display: none; }
+  .home .fee-table { border: 0; background: transparent; }
+  .home .fee-table tr {
+    margin-bottom: 12px;
+    border: 1px solid var(--line);
+    background: #fff;
+  }
+  .home .fee-table td {
+    display: grid;
+    grid-template-columns: 118px minmax(0, 1fr);
+    gap: 12px;
+    border-right: 0;
+  }
+  .home .fee-table td::before {
+    content: attr(data-label);
+    color: var(--faint);
+    font: 800 11px/1.25 var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -632,6 +681,8 @@ footer { border-top: 1px solid var(--line); }
   .home .cart-proof-pay,
   .home .ops-window,
   .home .ops-callout,
+  .home .fee-table,
+  .home .fee-table tr,
   .home .product,
   .home .step { background: #111; }
   .comparison-table th,
