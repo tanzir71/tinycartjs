@@ -346,10 +346,12 @@ test("theme tokens are host-overridable and scoped to TinyCart", () => {
   const css = document.getElementById("tinycart-style").textContent;
 
   assert.equal(root.style.getPropertyValue("--tc-accent"), "");
-  assert.match(css, /var\(--tc-accent,#111\)/);
-  assert.match(css, /var\(--tc-radius,10px\)/);
-  assert.match(css, /var\(--tc-font,/);
-  assert.doesNotMatch(css, /prefers-color-scheme:dark/);
+  assert.match(css, /--tc-accent:#111/);
+  assert.match(css, /var\(--tc-accent\)/);
+  assert.match(css, /--tc-radius:10px/);
+  assert.match(css, /var\(--tc-radius\)/);
+  assert.match(css, /--tc-font:system-ui/);
+  assert.match(css, /prefers-color-scheme:dark/);
   assert.doesNotMatch(css, /(^|\n)\s*(body|button|input|textarea)\b/);
 });
 

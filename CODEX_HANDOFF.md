@@ -193,7 +193,7 @@ aesthetics. Every section added must show the product doing real work
   - [ ] `grep -rl $'\xEF\xBB\xBF' *.html *.css *.js *.php *.md` returns nothing.
   - [ ] Visual diff of all pages: identical header/footer, consistent type scale.
 
-- [ ] **A4. Dark mode across site and widget.**
+- [x] **A4. Dark mode across site and widget.**
   Files: `site.css`, `index.html`, `tinycart.js`.
   Add `prefers-color-scheme: dark` variable sets for the site (`--bg`, `--fg`,
   `--line`, `--soft`) and the widget (`--tc-*` tokens already exist — add a dark

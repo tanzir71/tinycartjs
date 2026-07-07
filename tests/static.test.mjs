@@ -324,6 +324,10 @@ for (const token of [
 for (const token of ["scrollbar-color: var(--fg) var(--soft)", ".diagram-wrap", ".comparison-table", ".doc-shell"]) {
   assert.ok(siteCss.includes(token), `site.css should include ${token}`);
 }
+assert.ok(siteCss.includes("@media (prefers-color-scheme: dark)"), "site.css should include dark-mode color tokens");
+for (const token of ["--bg: #0b0b0b", "--fg: #f5f5f5", "--line: #2a2a2a", "--soft: #171717"]) {
+  assert.ok(siteCss.includes(token), `site dark mode should define ${token}`);
+}
 
 const docsHtml = read("docs.html");
 for (const token of ["TinyCart Docs", "data-tc-id", "tinycart.init", "apiCheckout", "catalogUrl", "Developer API"]) {
@@ -375,11 +379,12 @@ for (const [file, competitor] of [
 }
 
 assert.ok(js.includes("--tc-bg:#fff"), "cart widget should default to light mode");
+assert.ok(js.includes("@media (prefers-color-scheme:dark)"), "cart widget should include dark-mode token defaults");
 assert.ok(js.includes(".tc-dialog{position:fixed;inset:auto 12px 12px 12px"), "cart modal should use compact mobile spacing");
 assert.match(js, /\.tc-dialog\{[^}]*padding:0/, "cart modal should neutralize host section padding");
 assert.ok(js.includes(".tc-body{overflow:auto;scrollbar-color:var(--tc-fg,#111) var(--tc-soft,#f7f7f7);"), "cart modal should style its scrollbar");
 assert.ok(js.includes(".tc-form{display:grid;gap:8px;margin-top:8px;padding-top:10px"), "checkout form spacing should stay compact");
-assert.ok(!js.includes("prefers-color-scheme:dark"), "cart widget should not force a dark theme by media query");
+assert.ok(js.length < 48_000, "cart widget should stay below the size ceiling after dark mode");
 
 console.log("Static TinyCart checks passed.");
 

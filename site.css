@@ -11,6 +11,43 @@
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0b0b0b;
+    --fg: #f5f5f5;
+    --muted: #b8b8b8;
+    --faint: #8e8e8e;
+    --line: #2a2a2a;
+    --soft: #171717;
+    --ink: #f5f5f5;
+  }
+  .btn.secondary,
+  .cell,
+  .panel,
+  .path,
+  .note,
+  .doc-content section,
+  .diagram-card,
+  .flow-card,
+  .table-wrap,
+  .home .stat,
+  .home .cart-proof,
+  .home .cart-proof-pay,
+  .home .product,
+  .home .step { background: #111; }
+  .comparison-table th,
+  .home .cart-proof-box,
+  .home .demo-note,
+  .inline-code { background: var(--soft); }
+  .home .demo-note code { background: #111; }
+  .home .cart-proof-thumb {
+    background:
+      linear-gradient(135deg, transparent 45%, var(--line) 46% 54%, transparent 55%),
+      var(--soft);
+  }
+}
+
 * { box-sizing: border-box; }
 html {
   -webkit-text-size-adjust: 100%;
@@ -491,4 +528,34 @@ footer { border-top: 1px solid var(--line); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn { color: var(--bg); }
+  .btn.secondary { background: #111; color: var(--fg); }
+  .cell,
+  .panel,
+  .path,
+  .note,
+  .doc-content section,
+  .diagram-card,
+  .flow-card,
+  .table-wrap,
+  .home .stat,
+  .home .cart-proof,
+  .home .cart-proof-pay,
+  .home .product,
+  .home .step { background: #111; }
+  .comparison-table th,
+  .home .cart-proof-box,
+  .home .demo-note,
+  .inline-code { background: var(--soft); }
+  .home .code-strip,
+  .callout { background: #050505; color: #f2f2f2; }
+  .home .demo-note code { background: #111; }
+  .home .cart-proof-thumb {
+    background:
+      linear-gradient(135deg, transparent 45%, var(--line) 46% 54%, transparent 55%),
+      var(--soft);
+  }
 }
