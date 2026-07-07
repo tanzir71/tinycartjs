@@ -34,6 +34,7 @@ const PRODUCT_CATALOG = [
     'tee-001' => ['name' => 'TinyCart Tee', 'price_cents' => 2400, 'stock' => 100],
     'mug-001' => ['name' => 'Checkout Mug', 'price_cents' => 1800, 'stock' => 80],
     'sticker-001' => ['name' => 'Script Tag Sticker Pack', 'price_cents' => 700, 'stock' => 250],
+    'ebook-001' => ['name' => 'TinyCart Ebook', 'price_cents' => 1200, 'stock' => 999, 'file' => 'files/ebook.pdf'],
 ];
 
 const COUPONS = [
@@ -55,6 +56,7 @@ const PAYPAL_API_BASE = 'https://api-m.paypal.com';
 const WEBHOOK_URL = '';
 const WEBHOOK_SECRET = '';
 const ORDER_EMAIL_TO = '';
+const DOWNLOAD_TTL_SECONDS = 72 * 60 * 60;
 
 main();
 
@@ -84,6 +86,8 @@ function main(): void
         if ($payment !== null) {
             updateOrderPayment($pdo, $orderId, $payment);
         }
+        $downloads = digitalDownloadLinks($validated, $orderId);
+        $validated['downloads'] = $downloads;
         dispatchOrderNotifications($pdo, $orderId, $validated);
 
         jsonResponse([
@@ -97,6 +101,7 @@ function main(): void
             'payment_method' => $validated['payment_method'],
             'payment_status' => $validated['payment_status'],
             'payment_provider' => $payment['provider'] ?? null,
+            'downloads' => $downloads,
         ]);
     } catch (ClientError $error) {
         jsonResponse(['ok' => false, 'error' => $error->getMessage()], $error->statusCode);
@@ -682,6 +687,7 @@ function orderSummary(string $orderId, array $order): array
             'qty' => $item['qty'],
             'line_total_cents' => $item['line_total_cents'],
         ], $order['items']),
+        'downloads' => $order['downloads'] ?? [],
         'created_at' => gmdate('c'),
     ];
 }
@@ -724,7 +730,34 @@ function plainOrderEmail(array $summary): string
     foreach ($summary['items'] as $item) {
         $lines[] = $item['qty'] . ' x ' . $item['name'] . ' (' . $item['id'] . ')';
     }
+    foreach ($summary['downloads'] ?? [] as $download) {
+        $lines[] = 'Download ' . $download['name'] . ': ' . $download['url'];
+    }
     return implode(PHP_EOL, $lines);
+}
+
+function digitalDownloadLinks(array $order, string $orderId): array
+{
+    $links = [];
+    foreach ($order['items'] as $item) {
+        $product = PRODUCT_CATALOG[$item['id']] ?? [];
+        $file = cleanString($product['file'] ?? '', 500);
+        if ($file === '') {
+            continue;
+        }
+        $exp = (string)(time() + DOWNLOAD_TTL_SECONDS);
+        $sig = hash_hmac('sha256', $orderId . '|' . $item['id'] . '|' . $exp, HMAC_SECRET);
+        $links[] = [
+            'item' => $item['id'],
+            'name' => $item['name'],
+            'expires_at' => gmdate('c', (int)$exp),
+            'url' => 'download.php?order=' . rawurlencode($orderId)
+                . '&item=' . rawurlencode($item['id'])
+                . '&exp=' . rawurlencode($exp)
+                . '&sig=' . rawurlencode($sig),
+        ];
+    }
+    return $links;
 }
 
 function updateOrderPayment(PDO $pdo, string $orderId, array $payment): void

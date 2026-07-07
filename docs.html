@@ -170,6 +170,7 @@
               <div class="cell"><h3>Shipping, tax, refunds</h3><p>Shipping rates, tax calculation, refunds, returns, subscriptions, and customer-service flows are intentionally bring-your-own. Add them in your backend, payment provider dashboard, or existing operations tool.</p></div>
               <div class="cell"><h3>Inventory and coupons</h3><p><code>catalog.php</code> can hydrate display data, <code>coupon.php</code> can preview discounts, and <code>admin.php</code> can update stock or toggle coupon overrides. Checkout still revalidates all product, price, coupon, total, and stock data.</p></div>
               <div class="cell"><h3>Notifications and analytics</h3><p><code>WEBHOOK_URL</code> receives a signed PII-free order summary for integrations. <code>ORDER_EMAIL_TO</code> sends a simple plaintext order email. <code>collect.php</code> can record optional cart events without customer contact details.</p></div>
+              <div class="cell"><h3>Digital delivery</h3><p>Products may declare a protected file path in <code>PRODUCT_CATALOG</code>. <code>download.php</code> checks the signed link, expiry, payment status, and download count before streaming the file.</p></div>
             </div>
           </section>
 

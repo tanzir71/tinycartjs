@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -7,10 +7,11 @@ import test from "node:test";
 
 const root = process.cwd();
 const origin = "http://127.0.0.1:8000";
+const hasPdoSqlite = spawnSync("php", ["-r", "echo extension_loaded('pdo_sqlite') ? '1' : '0';"], { encoding: "utf8" }).stdout === "1";
 
 async function withServer(run) {
   const fixture = mkdtempSync(join(tmpdir(), "tinycart-endpoints-"));
-  for (const file of ["checkout.php", "collect.php", "coupon.php", "catalog.php"]) {
+  for (const file of ["checkout.php", "collect.php", "coupon.php", "catalog.php", "download.php"]) {
     assert.ok(existsSync(join(root, file)), `${file} should exist`);
     copyFileSync(join(root, file), join(fixture, file));
   }
@@ -27,7 +28,9 @@ async function withServer(run) {
 
   try {
     await waitForServer(base);
-    await run(base);
+    mkdirSync(join(fixture, "files"), { recursive: true });
+    writeFileSync(join(fixture, "files", "ebook.pdf"), "tiny ebook\n", { flag: "w" });
+    await run(base, fixture);
   } finally {
     await stopServer(server);
     rmSync(fixture, { recursive: true, force: true });
@@ -82,6 +85,11 @@ async function postRaw(base, path, body, requestOrigin = origin) {
   return [response, await response.json()];
 }
 
+async function getJson(url) {
+  const response = await fetch(url);
+  return [response, await response.json()];
+}
+
 function checkoutPayload(coupon) {
   return {
     cartKey: "demo-store",
@@ -111,6 +119,19 @@ function checkoutPayload(coupon) {
     },
     page: "http://127.0.0.1:8000/sample.html"
   };
+}
+
+function digitalPayload() {
+  const payload = checkoutPayload(null);
+  payload.cart.items = [{
+    id: "ebook-001",
+    name: "TinyCart Ebook",
+    priceCents: 1200,
+    qty: 1,
+    options: {}
+  }];
+  payload.cart.totals = { subtotalCents: 1200, discountCents: 0, totalCents: 1200 };
+  return payload;
 }
 
 test("coupon endpoint validates active, invalid, and expired coupons", async () => {
@@ -468,6 +489,7 @@ class FakeStatement {
     public function fetchAll(): array { return []; }
     public function rowCount(): int { return 1; }
 }
+
 class FakePdo {
     public array $calls = [];
     public function prepare(string $sql): FakeStatement {
@@ -718,6 +740,65 @@ test("malformed JSON returns structured endpoint errors", async () => {
   });
 });
 
+test("checkout creates signed digital download links for email and success responses", () => {
+  const result = runCheckoutSnippet(`
+$order = validateOrderPayload($payload);
+$links = digitalDownloadLinks($order, 'TDOWNLOAD1');
+$order['downloads'] = $links;
+$summary = orderSummary('TDOWNLOAD1', $order);
+echo json_encode(['links' => $links, 'email' => plainOrderEmail($summary)], JSON_UNESCAPED_SLASHES);
+`, digitalPayload());
+
+  assert.equal(result.links.length, 1);
+  assert.equal(result.links[0].item, "ebook-001");
+  assert.match(result.links[0].url, /download\.php\?order=TDOWNLOAD1&item=ebook-001&exp=\d+&sig=[a-f0-9]{64}/);
+  assert.match(result.email, /Download TinyCart Ebook: download\.php/);
+});
+
+test("digital download links are signed, gated, and capped", { skip: hasPdoSqlite ? false : "pdo_sqlite extension is unavailable in local PHP" }, async () => {
+  await withServer(async (base, fixture) => {
+    const [, order] = await postJson(base, "checkout.php", digitalPayload());
+    assert.equal(order.ok, true);
+    assert.equal(order.downloads.length, 1);
+    const link = new URL(order.downloads[0].url, base);
+
+    const tampered = new URL(link);
+    tampered.searchParams.set("item", "tee-001");
+    const [tamperedResponse, tamperedJson] = await getJson(tampered);
+    assert.equal(tamperedResponse.status, 403);
+    assert.equal(tamperedJson.ok, false);
+
+    const expired = new URL(link);
+    expired.searchParams.set("exp", "1");
+    expired.searchParams.set("sig", hmac(`${order.order_id}|ebook-001|1`, "replace-with-32-plus-random-bytes"));
+    const [expiredResponse, expiredJson] = await getJson(expired);
+    assert.equal(expiredResponse.status, 403);
+    assert.equal(expiredJson.ok, false);
+
+    setOrderPayment(fixture, order.order_id, "paid", "manual");
+    for (let index = 0; index < 5; index += 1) {
+      const response = await fetch(link);
+      assert.equal(response.status, 200);
+      assert.equal(await response.text(), "tiny ebook\n");
+    }
+    const [limitedResponse, limitedJson] = await getJson(link);
+    assert.equal(limitedResponse.status, 403);
+    assert.equal(limitedJson.ok, false);
+  });
+});
+
+test("unpaid online orders cannot download digital files", { skip: hasPdoSqlite ? false : "pdo_sqlite extension is unavailable in local PHP" }, async () => {
+  await withServer(async (base, fixture) => {
+    const [, order] = await postJson(base, "checkout.php", digitalPayload());
+    const link = new URL(order.downloads[0].url, base);
+    setOrderPayment(fixture, order.order_id, "pending", "online");
+
+    const [response, body] = await getJson(link);
+    assert.equal(response.status, 403);
+    assert.equal(body.ok, false);
+  });
+});
+
 function validateCheckoutPayload(payload) {
   return runCheckoutSnippet(`
 $order = validateOrderPayload($payload);
@@ -805,4 +886,11 @@ function hmac(value, secret) {
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
   return result.stdout;
+}
+
+function setOrderPayment(fixture, orderId, status, method) {
+  const db = join(fixture, "data", "orders.sqlite").replace(/\\/g, "/");
+  const code = `$pdo=new PDO("sqlite:${db}");$stmt=$pdo->prepare("UPDATE orders SET payment_status=?, payment_method=? WHERE id=?");$stmt->execute([${JSON.stringify(status)},${JSON.stringify(method)},${JSON.stringify(orderId)}]);`;
+  const result = spawnSync("php", ["-r", code], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 }

@@ -107,6 +107,7 @@ Keep these constants aligned across files:
 | `payment.php` | `STRIPE_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET` | Only needed when online payments are enabled. |
 | `admin.php` | `ADMIN_ALLOWED_ORIGINS`, `ADMIN_API_KEYS`, `ADMIN_PASSWORD_HASH`, `ADMIN_PRODUCT_CATALOG`, `ADMIN_COUPONS` | Admin catalog/coupon lists should mirror checkout so operators see the right stock and toggles. |
 | `collect.php` | `COLLECT_ALLOWED_ORIGINS`, `COLLECT_API_KEYS`, rate limits | Analytics should not receive secrets or unnecessary customer PII. |
+| `download.php` | `DOWNLOAD_FILES`, `DOWNLOAD_SECRET`, `DOWNLOAD_MAX_COUNT`, `DOWNLOAD_ALLOW_COD_DUE` | Optional digital delivery for paid orders. Keep file paths private or guarded. |
 
 Generate secrets with your password manager or a local command such as `openssl rand -hex 32`. Do not reuse `HMAC_SECRET`, API keys, webhook secrets, or admin passwords.
 
@@ -115,6 +116,18 @@ Generate secrets with your password manager or a local command such as `openssl 
 `checkout.php` creates `data/orders.sqlite` and the required order tables automatically with PDO prepared statements. Manual and online orders start with `payment_status` set to `pending`; COD orders use `payment_status` `cod_due` and skip payment provider handoff. When payment providers are enabled, online checkout responses include `pay_url` for the hosted payment page. `payment.php` updates the same order row to `paid` after a verified Stripe webhook or captured PayPal return. `catalog.php` serves a read-only cacheable catalog for optional client hydration. `admin.php` reads and updates orders, stock, coupon overrides, and webhook retry state after auth. `coupon.php` stores rate-limit buckets in `data/coupon_rate_limits/`. `collect.php` creates `data/collect.sqlite` with `collect_events`, `failed_payloads`, and `rate_limits`.
 
 The checkout database also includes an `inventory` table seeded from `PRODUCT_CATALOG` on first run. Existing rows are not overwritten automatically, so restock through `admin.php` or SQLite. Coupon activation overrides live in `coupon_overrides`; the configured coupon rules still live in PHP constants. Failed webhook attempts are recorded in `webhook_deliveries` and can be queued for immediate retry in the dashboard.
+
+## Digital Downloads
+
+Add a `file` path to products in `checkout.php` when a paid order should receive a signed download link:
+
+```php
+'ebook-001' => ['name' => 'TinyCart Ebook', 'price_cents' => 1200, 'stock' => 999, 'file' => 'files/ebook.pdf'],
+```
+
+Mirror the same product id and file path in `download.php` under `DOWNLOAD_FILES`, and keep `DOWNLOAD_SECRET` equal to `HMAC_SECRET` unless you intentionally rotate download links separately. Put files outside the public web root when your host allows it; otherwise guard the directory with an `.htaccess` file such as `Require all denied` and let `download.php` stream files after verification.
+
+Download links expire after 72 hours by default and are capped by `DOWNLOAD_MAX_COUNT` (default 5). Online orders must be marked `paid` by `payment.php` before the link streams. COD orders are blocked until an operator marks cash collected; set `DOWNLOAD_ALLOW_COD_DUE` only if you knowingly want COD-due orders to download before collection.
 
 ## Cash on Delivery
 

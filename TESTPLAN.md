@@ -85,6 +85,28 @@ data-tc-config='{"paymentMethods":["online","cod"],"defaultPaymentMethod":"cod",
 
 Expected: the mobile cart shows radio options for online payment and Cash on Delivery, COD is selected by default, and checkout JSON includes `"paymentMethod":"cod"`. With zero or one configured method, the widget should not render the radio group.
 
+## Digital Downloads
+
+Configure `ebook-001` with a `file` in `checkout.php`, mirror it in `download.php`, then create an order:
+
+```bash
+curl -i -X POST http://127.0.0.1:8000/checkout.php \
+  -H "Origin: http://127.0.0.1:8000" \
+  -H "Content-Type: application/json" \
+  --data '{"cartKey":"demo-store","currency":"USD","customer":{"name":"Ada Lovelace","phone":"+15551234567","email":"ada@example.com","address":"1 Byte Lane"},"cart":{"items":[{"id":"ebook-001","name":"TinyCart Ebook","priceCents":1200,"qty":1,"options":{}}],"totals":{"subtotalCents":1200}},"page":"http://127.0.0.1:8000/sample.html"}'
+```
+
+Expected: response includes a `downloads[0].url`. Before the order is marked `paid`, this URL returns HTTP `403` JSON. After marking the order paid through `payment.php` or `admin.php`, the same URL streams the file with `Content-Disposition: attachment`.
+
+Tamper and expiry checks:
+
+```bash
+curl -i "http://127.0.0.1:8000/download.php?order=TORDER&item=wrong&exp=9999999999&sig=BAD"
+curl -i "http://127.0.0.1:8000/download.php?order=TORDER&item=ebook-001&exp=1&sig=RECOMPUTED_EXPIRED_SIG"
+```
+
+Expected: HTTP `403` JSON and no file bytes. Download the paid link more than `DOWNLOAD_MAX_COUNT` times; the next request should return HTTP `403` JSON with `Download limit reached`.
+
 ## Catalog Endpoint
 
 ```bash

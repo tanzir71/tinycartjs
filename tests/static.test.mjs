@@ -13,6 +13,7 @@ for (const file of [
   "catalog.php",
   "admin.php",
   "collect.php",
+  "download.php",
   "README.md",
   "SETUP.md",
   "SECURITY.md",
@@ -206,6 +207,11 @@ for (const token of [
 }
 assert.ok(!collect.includes("Access-Control-Allow-Origin: *"), "collect.php should not allow wildcard CORS");
 
+const download = read("download.php");
+for (const token of ["DOWNLOAD_MAX_COUNT", "DOWNLOAD_ALLOW_COD_DUE", "hash_hmac", "hash_equals", "readfile", "Content-Disposition", "mime_content_type", "downloadRateLimit"]) {
+  assert.ok(download.includes(token), `download.php should include ${token}`);
+}
+
 const readme = read("README.md");
 assert.ok(readme.includes("https://github.com/tanzir71/tinycartjs"), "README should use the chosen GitHub repo URL");
 assert.ok(readme.includes("data-tc-id"), "README should document product buttons");
@@ -214,6 +220,9 @@ assert.ok(readme.includes("cdn.jsdelivr.net/gh/tanzir71/tinycartjs"), "README sh
 assert.ok(readme.includes("tinycart.min.js"), "README should document the optional minified build");
 for (const token of ["Architecture at a Glance", "Checkout Payload and Response", "Status Reference", "Recommended daily flow", "Troubleshooting"]) {
   assert.ok(readme.includes(token), `README should include detailed docs for ${token}`);
+}
+for (const token of ["download.php", "signed digital-delivery links", "DOWNLOAD_MAX_COUNT"]) {
+  assert.ok(readme.includes(token) || read("SETUP.md").includes(token) || read("TESTPLAN.md").includes(token), `docs should cover digital downloads: ${token}`);
 }
 
 const changelog = read("CHANGELOG.md");
@@ -225,6 +234,7 @@ assert.equal(pkg.version, "0.2.0");
 assert.deepEqual(pkg.dependencies ?? {}, {}, "package.json should not add runtime dependencies");
 assert.deepEqual(pkg.devDependencies ?? {}, {}, "package.json should not add dev dependencies");
 assert.ok(pkg.files.includes("tinycart.js"), "package.json should publish tinycart.js");
+assert.ok(pkg.files.includes("download.php"), "package.json should publish download.php");
 assert.equal(pkg.scripts["build:min"], "node scripts/minify.mjs", "package.json should expose the no-dependency minify helper");
 
 const plainExample = read("examples/plain-html.html");
@@ -392,6 +402,7 @@ for (const token of [
   "Status reference",
   "Payment flow",
   "Order records",
+  "Digital delivery",
   "Fulfilment is manual",
   "Shipping, tax, refunds",
   "Server endpoints",

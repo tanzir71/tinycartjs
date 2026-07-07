@@ -924,6 +924,12 @@ closeCart();
 });
 row.append(create("code", "tc-order-id", id), copy);
 box.append(checkIcon(), title, row, create("p", "tc-success-note", message), cont);
+(Array.isArray(result && result.downloads) ? result.downloads : []).forEach((download) => {
+const link = create("a", "tc-download", str(download.name || "Download", 80));
+link.href = str(download.url, 500);
+link.setAttribute("rel", "noopener");
+box.append(link);
+});
 s.body.replaceChildren(box);
 s.foot.hidden = true;
 title.focus();

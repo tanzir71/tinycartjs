@@ -29,6 +29,7 @@
     "catalog.php",
     "admin.php",
     "collect.php",
+    "download.php",
     "README.md",
     "SETUP.md",
     "SECURITY.md",

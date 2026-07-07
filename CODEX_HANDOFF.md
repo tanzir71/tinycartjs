@@ -315,7 +315,7 @@ Byte budget note: before B tasks, do B0.
 
 ### Phase C — Features (each opt-in, each fights a specific competitor)
 
-- [ ] **C1. Digital file delivery (vs Gumroad/Payhip/Lemon Squeezy).**
+- [x] **C1. Digital file delivery (vs Gumroad/Payhip/Lemon Squeezy).**
   Files: new `download.php`, `checkout.php`, `SETUP.md`, `docs.html`.
   Products in `PRODUCT_CATALOG` may declare `'file' => 'files/ebook.pdf'`
   (path outside webroot or guarded by `.htaccess` — document both). On paid (or
