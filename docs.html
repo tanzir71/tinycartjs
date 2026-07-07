@@ -246,14 +246,33 @@
           <section id="theme">
             <span class="idx">UI</span>
             <h2>Theme tokens</h2>
-            <p>TinyCart styles are scoped under <code>.tc-root</code> and can be overridden with CSS variables without forking the library.</p>
+            <p>TinyCart styles are scoped under <code>.tc-root</code> and can be overridden with CSS variables without forking the library. Check contrast any time you change foreground, background, or accent colors.</p>
+            <table>
+              <thead><tr><th>Token</th><th>Default</th></tr></thead>
+              <tbody>
+                <tr><td><code>--tc-bg</code></td><td><code>#fff</code></td></tr>
+                <tr><td><code>--tc-fg</code></td><td><code>#111</code></td></tr>
+                <tr><td><code>--tc-muted</code></td><td><code>#666</code></td></tr>
+                <tr><td><code>--tc-line</code></td><td><code>#ddd</code></td></tr>
+                <tr><td><code>--tc-soft</code></td><td><code>#f7f7f7</code></td></tr>
+                <tr><td><code>--tc-accent</code></td><td><code>#111</code></td></tr>
+                <tr><td><code>--tc-radius</code></td><td><code>10px</code></td></tr>
+                <tr><td><code>--tc-font</code></td><td><code>system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif</code></td></tr>
+              </tbody>
+            </table>
+            <div class="cell" aria-label="Live themed TinyCart example" style="--tc-bg:#fff8fb;--tc-fg:#392231;--tc-muted:#7d5a6d;--tc-line:#f0bdd2;--tc-soft:#fff1f6;--tc-accent:#9f2d66;--tc-radius:18px;background:var(--tc-bg);color:var(--tc-fg);border-color:var(--tc-line);font-family:var(--tc-font, system-ui);">
+              <h3 style="margin-top:0;">Pastel checkout</h3>
+              <p style="color:var(--tc-muted);">A live token preview using the same variables the widget reads.</p>
+              <button style="min-height:38px;border:1px solid var(--tc-accent);border-radius:var(--tc-radius);background:var(--tc-accent);color:#fff;padding:0 14px;font-weight:800;">Cart 2</button>
+            </div>
             <pre class="pre-block">.tc-root {
-  --tc-accent: #1A73E8;
-  --tc-bg: #fff;
-  --tc-fg: #080808;
-  --tc-line: #e7e7e7;
+  --tc-bg: #fff8fb;
+  --tc-fg: #392231;
+  --tc-muted: #7d5a6d;
+  --tc-line: #f0bdd2;
+  --tc-soft: #fff1f6;
+  --tc-accent: #9f2d66;
   --tc-radius: 18px;
-  --tc-font: Inter, system-ui, sans-serif;
 }</pre>
           </section>
         </div>

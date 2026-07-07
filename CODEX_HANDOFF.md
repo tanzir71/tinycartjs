@@ -305,7 +305,7 @@ Byte budget note: before B tasks, do B0.
   - [ ] Axe/Lighthouse a11y ≥ 95 on `sample.html`.
   - [ ] Size ceiling holds (this is why B0 exists).
 
-- [ ] **B4. Document theming properly.**
+- [x] **B4. Document theming properly.**
   Files: `docs.html`, `README.md`.
   A "Theming" docs section listing every `--tc-*` token with default value, a
   live themed example on the docs page (e.g. rounded pastel theme in 6 lines of

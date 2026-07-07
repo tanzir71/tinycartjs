@@ -374,6 +374,15 @@ const docsHtml = read("docs.html");
 for (const token of ["TinyCart Docs", "data-tc-id", "tinycart.init", "apiCheckout", "catalogUrl", "Developer API"]) {
   assert.ok(docsHtml.includes(token), `docs.html should include ${token}`);
 }
+const themeTokens = [...new Set(js.match(/--tc-[a-z-]+/g))].sort();
+assert.deepEqual(themeTokens, ["--tc-accent", "--tc-bg", "--tc-fg", "--tc-font", "--tc-line", "--tc-muted", "--tc-radius", "--tc-soft"], "theme token list should be explicit");
+for (const token of themeTokens) {
+  assert.ok(readme.includes(`\`${token}\``), `README should list theme token ${token}`);
+  assert.ok(docsHtml.includes(`<code>${token}</code>`), `docs.html should list theme token ${token}`);
+}
+for (const token of ["Live themed TinyCart example", "Pastel checkout", "contrast"]) {
+  assert.ok(docsHtml.includes(token), `docs.html should include theming detail ${token}`);
+}
 for (const token of ["data-tc-img", "display only", "never sent in the checkout payload"]) {
   assert.ok(docsHtml.includes(token), `docs.html should document thumbnail behavior: ${token}`);
 }

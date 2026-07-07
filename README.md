@@ -273,18 +273,28 @@ Set `catalogUrl` to `/catalog.php` to hydrate product name, price, currency, and
 
 ## Theme Tokens
 
-TinyCart styles are scoped under `.tc-root` and use CSS custom properties so host pages can theme without forking:
+TinyCart styles are scoped under `.tc-root` and use CSS custom properties so host pages can theme without forking. Keep foreground/background and accent/button contrast readable when overriding tokens.
+
+| Token | Default |
+| --- | --- |
+| `--tc-bg` | `#fff` |
+| `--tc-fg` | `#111` |
+| `--tc-muted` | `#666` |
+| `--tc-line` | `#ddd` |
+| `--tc-soft` | `#f7f7f7` |
+| `--tc-accent` | `#111` |
+| `--tc-radius` | `10px` |
+| `--tc-font` | `system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` |
 
 ```css
 .tc-root {
-  --tc-accent: #1A73E8;
-  --tc-bg: #fff;
-  --tc-fg: #080808;
-  --tc-muted: #666;
-  --tc-line: #e7e7e7;
-  --tc-soft: #f7f7f7;
+  --tc-bg: #fff8fb;
+  --tc-fg: #392231;
+  --tc-muted: #7d5a6d;
+  --tc-line: #f0bdd2;
+  --tc-soft: #fff1f6;
+  --tc-accent: #9f2d66;
   --tc-radius: 18px;
-  --tc-font: Inter, system-ui, sans-serif;
 }
 ```
 
