@@ -204,7 +204,7 @@ aesthetics. Every section added must show the product doing real work
   - [ ] OS dark mode renders every page and the open cart correctly (no white flashes, contrast ≥ 4.5:1).
   - [ ] `tinycart.js` still < 48,000 bytes.
 
-- [ ] **A5. "See the ops" section — admin dashboard showcase.**
+- [x] **A5. "See the ops" section — admin dashboard showcase.**
   Files: `index.html`, new `assets/admin-orders.png` (or inline HTML replica).
   Nobody believes "ops dashboard included" without seeing it. Run `admin.php`
   locally with 5–6 seeded fake orders (mix of `cod_due`, paid, shipped), take a

@@ -310,6 +310,9 @@ assert.ok(index.includes('class="cart-proof"'), "hero should render a real cart 
 assert.ok(index.includes("Cash on delivery") && index.includes("SAVE10 applied"), "hero cart replica should show COD and an applied coupon");
 assert.ok(index.includes("v0.2.0") && index.includes("MIT") && index.includes("PHP 8+"), "hero should include release/license/runtime metadata");
 assert.ok(index.includes("img.shields.io/github/stars/tanzir71/tinycartjs") && index.includes('loading="lazy"'), "hero should include a lazy GitHub stars badge");
+for (const token of ["ops-showcase", "COD collection", "CSV export", "Order queue", "cod_due", "paid", "shipped"]) {
+  assert.ok(index.includes(token), `landing should show the admin ops showcase detail: ${token}`);
+}
 for (const token of [
   "Cash, cards, and fulfilment in one quiet dashboard",
   "Payments",

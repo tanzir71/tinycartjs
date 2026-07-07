@@ -125,6 +125,66 @@
       </div>
     </section>
 
+    <section id="ops" class="ops-showcase">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>See the ops before you trust the checkout.</h2>
+          <p>The included admin page is boring on purpose: a daily order queue, COD collection state, stock notes, and CSV export without a hosted dashboard account.</p>
+        </div>
+        <div class="ops-frame" aria-label="TinyCart admin dashboard replica with fake order data">
+          <div class="ops-window">
+            <div class="ops-bar">
+              <span>admin.php / orders</span>
+              <span class="ops-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+            </div>
+            <div class="ops-toolbar">
+              <strong>Orders</strong>
+              <div class="ops-pills" aria-label="Admin filters">
+                <span class="ops-pill">cod_due</span>
+                <span class="ops-pill">paid</span>
+                <span class="ops-pill">shipped</span>
+                <span class="ops-pill">Export CSV</span>
+              </div>
+            </div>
+            <div class="ops-table" role="table" aria-label="Fake TinyCart order queue">
+              <div class="ops-row header" role="row">
+                <span>Order</span><span>Payment</span><span>Fulfilment</span><span>Total</span>
+              </div>
+              <div class="ops-row" role="row">
+                <span class="ops-order"><strong>TC-1048</strong><span>Rina Ahmed / 3 items</span></span>
+                <span class="ops-status">cod_due</span>
+                <span>confirmed</span>
+                <span>$52.20</span>
+              </div>
+              <div class="ops-row" role="row">
+                <span class="ops-order"><strong>TC-1047</strong><span>Marco Silva / 1 item</span></span>
+                <span class="ops-status">paid</span>
+                <span>packed</span>
+                <span>$24.00</span>
+              </div>
+              <div class="ops-row" role="row">
+                <span class="ops-order"><strong>TC-1046</strong><span>Ada Lovelace / 2 items</span></span>
+                <span class="ops-status">paid</span>
+                <span>shipped</span>
+                <span>$86.00</span>
+              </div>
+              <div class="ops-row" role="row">
+                <span class="ops-order"><strong>TC-1045</strong><span>Sam Lee / 1 item</span></span>
+                <span class="ops-status">cod_due</span>
+                <span>new</span>
+                <span>$18.00</span>
+              </div>
+            </div>
+          </div>
+          <div class="ops-callouts">
+            <div class="ops-callout"><strong>Order queue</strong><p>Filter by payment and fulfilment state before packing the next batch.</p></div>
+            <div class="ops-callout"><strong>COD collection</strong><p>Mark cash collected only after the courier or pickup counter confirms payment.</p></div>
+            <div class="ops-callout"><strong>CSV export</strong><p>Export filtered orders for courier handoff, accounting, or a spreadsheet audit trail.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="demo">
       <div class="wrap">
         <div class="section-head">
