@@ -316,6 +316,9 @@ for (const token of ["ops-showcase", "COD collection", "CSV export", "Order queu
 for (const token of ["fee-comparison", "Snipcart", "Gumroad", "Lemon Squeezy", "Payhip", "$52.50", "$210", "$1,050", "Gateway fees"]) {
   assert.ok(index.includes(token), `landing should show the fee comparison detail: ${token}`);
 }
+for (const token of ["FAQPage", "Is it really free?", "What hosting do I need?", "Is COD safe?", "How do payments work?", "Can it do digital downloads?", "Is it secure?", "Can I restyle it?", "How do I update?"]) {
+  assert.ok(index.includes(token), `landing FAQ should include ${token}`);
+}
 for (const token of [
   "Cash, cards, and fulfilment in one quiet dashboard",
   "Payments",
@@ -382,6 +385,10 @@ for (const [file, competitor] of [
   const html = read(file);
   assert.ok(html.includes(`${competitor} alternative`), `${file} should have a focused alternative title`);
   assert.ok(html.includes("TinyCart is a better fit") && html.includes("compare.html"), `${file} should link back to the comparison hub`);
+}
+const shopifyAlternative = read("shopify-buy-button-alternative.html");
+for (const token of ["deprecated in January 2025", "July 1, 2025", "data-tc-id", "data-tc-name", "data-tc-price"]) {
+  assert.ok(shopifyAlternative.includes(token), `Shopify alternative should mention ${token}`);
 }
 
 assert.ok(js.includes("--tc-bg:#fff"), "cart widget should default to light mode");

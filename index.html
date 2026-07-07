@@ -243,6 +243,49 @@
       </div>
     </section>
 
+    <section id="faq">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>FAQ</h2>
+          <p>Short answers for the questions that usually decide whether TinyCart is the right level of tool.</p>
+        </div>
+        <div class="faq-list">
+          <details>
+            <summary>Is it really free?</summary>
+            <p>Yes. TinyCart is MIT licensed and has no platform fee. You still pay for hosting, domains, and gateway fees if you enable online payments.</p>
+          </details>
+          <details>
+            <summary>What hosting do I need?</summary>
+            <p>Any host that can serve static files plus PHP 8 with SQLite works. Shared hosting and cPanel-style accounts are the target environment.</p>
+          </details>
+          <details>
+            <summary>Is COD safe?</summary>
+            <p>COD is an operations workflow, not a fraud shield. TinyCart records COD orders as cash due so you can confirm the customer and mark cash collected only after payment arrives.</p>
+          </details>
+          <details>
+            <summary>How do payments work?</summary>
+            <p>Checkout stores the order first, then optionally hands the server-recomputed total to Stripe or PayPal. COD and manual payment skip provider redirects.</p>
+          </details>
+          <details>
+            <summary>Can it do digital downloads?</summary>
+            <p>Not in v0.2.0. Digital file delivery is planned for Phase C, with signed links and download limits.</p>
+          </details>
+          <details>
+            <summary>Is it secure?</summary>
+            <p>The browser is display-only. PHP re-prices products, validates coupons and stock, rate-limits endpoints, and avoids wildcard CORS by default.</p>
+          </details>
+          <details>
+            <summary>Can I restyle it?</summary>
+            <p>Yes. The widget is scoped under <code>.tc-root</code> and exposes <code>--tc-*</code> CSS tokens for colors, radius, and font choices.</p>
+          </details>
+          <details>
+            <summary>How do I update?</summary>
+            <p>Pin release files for production, test the new version locally, then replace the JS and PHP files together when checkout behavior changes.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
     <section id="demo">
       <div class="wrap">
         <div class="section-head">
@@ -415,6 +458,22 @@
       </nav>
     </div>
   </footer>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {"@type":"Question","name":"Is it really free?","acceptedAnswer":{"@type":"Answer","text":"Yes. TinyCart is MIT licensed and has no platform fee. You still pay for hosting, domains, and gateway fees if you enable online payments."}},
+      {"@type":"Question","name":"What hosting do I need?","acceptedAnswer":{"@type":"Answer","text":"Any host that can serve static files plus PHP 8 with SQLite works. Shared hosting and cPanel-style accounts are the target environment."}},
+      {"@type":"Question","name":"Is COD safe?","acceptedAnswer":{"@type":"Answer","text":"COD is an operations workflow, not a fraud shield. TinyCart records COD orders as cash due so you can confirm the customer and mark cash collected only after payment arrives."}},
+      {"@type":"Question","name":"How do payments work?","acceptedAnswer":{"@type":"Answer","text":"Checkout stores the order first, then optionally hands the server-recomputed total to Stripe or PayPal. COD and manual payment skip provider redirects."}},
+      {"@type":"Question","name":"Can it do digital downloads?","acceptedAnswer":{"@type":"Answer","text":"Not in v0.2.0. Digital file delivery is planned for Phase C, with signed links and download limits."}},
+      {"@type":"Question","name":"Is it secure?","acceptedAnswer":{"@type":"Answer","text":"The browser is display-only. PHP re-prices products, validates coupons and stock, rate-limits endpoints, and avoids wildcard CORS by default."}},
+      {"@type":"Question","name":"Can I restyle it?","acceptedAnswer":{"@type":"Answer","text":"Yes. The widget is scoped under .tc-root and exposes --tc-* CSS tokens for colors, radius, and font choices."}},
+      {"@type":"Question","name":"How do I update?","acceptedAnswer":{"@type":"Answer","text":"Pin release files for production, test the new version locally, then replace the JS and PHP files together when checkout behavior changes."}}
+    ]
+  }
+  </script>
 
   <script
     src="tinycart.js"

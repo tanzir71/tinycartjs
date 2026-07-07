@@ -229,7 +229,7 @@ aesthetics. Every section added must show the product doing real work
   - [ ] Table renders as a card grid on mobile (no horizontal scroll).
   - [ ] Every number matches Section 4 of this document.
 
-- [ ] **A7. Refresh comparison pages + add FAQ.**
+- [x] **A7. Refresh comparison pages + add FAQ.**
   Files: four `*-alternative.html`, `compare.html`, `index.html`.
   Update the Shopify page with the JS Buy SDK deprecation timeline (deprecated
   Jan 2025; checkout breakage from Jul 1 2025) and a short migration path

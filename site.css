@@ -531,6 +531,15 @@ footer { border-top: 1px solid var(--line); }
 .home .fee-table td strong { color: var(--fg); }
 .home .fee-table a { color: var(--fg); font-weight: 800; }
 .home .fee-note { max-width: 760px; margin: 14px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+.home .faq-list {
+  display: grid;
+  gap: 1px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+.home .faq-list details { background: #fff; padding: 18px 20px; }
+.home .faq-list summary { cursor: pointer; font-weight: 800; }
+.home .faq-list p { margin: 10px 0 0; color: var(--muted); font-size: 14.5px; line-height: 1.6; }
 .home .shop {
   display: grid;
   gap: 1px;
@@ -683,6 +692,7 @@ footer { border-top: 1px solid var(--line); }
   .home .ops-callout,
   .home .fee-table,
   .home .fee-table tr,
+  .home .faq-list details,
   .home .product,
   .home .step { background: #111; }
   .comparison-table th,

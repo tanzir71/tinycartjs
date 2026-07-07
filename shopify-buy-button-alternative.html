@@ -64,6 +64,21 @@
 
     <section class="section">
       <div class="wrap">
+        <div class="section-head">
+          <span class="idx">2025 MIGRATION</span>
+          <h2>Why Buy Button users started looking around.</h2>
+          <p>Shopify's JS Buy SDK was deprecated in January 2025, and checkout breakage for affected Buy Button flows started on July 1, 2025. If you only need a cart on an existing static site, the migration can be a small HTML attribute pass instead of a platform rebuild.</p>
+        </div>
+        <div class="grid grid-3">
+          <div class="cell"><span class="k">ID</span><h3>Product or variant id</h3><p>Map the old Buy Button product or variant identifier to <code>data-tc-id</code>. The PHP catalog should use the same id.</p></div>
+          <div class="cell"><span class="k">COPY</span><h3>Product title</h3><p>Map the rendered product title to <code>data-tc-name</code>. Checkout still treats this as display data.</p></div>
+          <div class="cell"><span class="k">MONEY</span><h3>Displayed price</h3><p>Map the visible price to <code>data-tc-price</code>, then let <code>checkout.php</code> re-price from server truth.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
         <div class="grid grid-3">
           <div class="cell"><span class="k">USE TINYCART</span><h3>Static site, real cart</h3><p>You already have the product page and want cart UX without adopting a store platform.</p></div>
           <div class="cell"><span class="k">USE TINYCART</span><h3>Server truth</h3><p>You want every checkout recomputed by your code before an order exists.</p></div>
