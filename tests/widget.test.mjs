@@ -542,6 +542,57 @@ test("catalogUrl hydrates product truth and disables out-of-stock buttons", asyn
   assert.equal(item.stock, 4);
 });
 
+test("renders sanitized product thumbnails without sending image URLs", async () => {
+  let checkoutPayload;
+  const { document } = createHarness({
+    fetch: async (_url, options) => {
+      checkoutPayload = JSON.parse(options.body);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, order_id: "TIMG1", pay_url: null })
+      };
+    }
+  });
+  const good = document.createElement("button");
+  good.setAttribute("data-tc-id", "tee-img");
+  good.setAttribute("data-tc-name", "Image Tee");
+  good.setAttribute("data-tc-price", "24.00");
+  good.setAttribute("data-tc-img", "images/tee.svg");
+  const scriptUrl = document.createElement("button");
+  scriptUrl.setAttribute("data-tc-id", "bad-js");
+  scriptUrl.setAttribute("data-tc-name", "Bad JS");
+  scriptUrl.setAttribute("data-tc-price", "1.00");
+  scriptUrl.setAttribute("data-tc-img", "javascript:alert(1)");
+  const dataUrl = document.createElement("button");
+  dataUrl.setAttribute("data-tc-id", "bad-data");
+  dataUrl.setAttribute("data-tc-name", "Bad Data");
+  dataUrl.setAttribute("data-tc-price", "1.00");
+  dataUrl.setAttribute("data-tc-img", "data:image/svg+xml;base64,PHN2Zz4=");
+  document.body.append(good, scriptUrl, dataUrl);
+
+  for (const button of [good, scriptUrl, dataUrl]) {
+    document.dispatchEvent(new FakeEvent("click", { target: button }));
+  }
+  await new Promise((resolve) => setTimeout(resolve, 70));
+
+  const thumbs = document.querySelectorAll(".tc-thumb");
+  assert.equal(thumbs.length, 1);
+  assert.equal(thumbs[0].getAttribute("src"), "images/tee.svg");
+  assert.equal(thumbs[0].getAttribute("loading"), "lazy");
+  assert.equal(thumbs[0].getAttribute("alt"), "");
+  assert.equal(thumbs[0].getAttribute("referrerpolicy"), "no-referrer");
+  assert.equal(document.querySelectorAll(".tc-has-img").length, 1);
+
+  fillCheckoutForm(document);
+  document.querySelector(".tc-form").dispatchEvent(new FakeEvent("submit"));
+  await flushAsync();
+
+  assert.equal(checkoutPayload.cart.items.length, 3);
+  assert.equal("img" in checkoutPayload.cart.items[0], false);
+  assert.equal(JSON.stringify(checkoutPayload).includes("images/tee.svg"), false);
+});
+
 test("renders payment choices and submits the selected payment method", async () => {
   let checkoutPayload;
   let copied = "";

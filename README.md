@@ -74,6 +74,7 @@ The minified file is optional; `tinycart.js` remains the canonical readable buil
 - `data-tc-price`: required decimal price, such as `24.00`. The server must re-check this.
 - `data-tc-qty`: optional default quantity, default `1`.
 - `data-tc-options`: optional JSON object, such as `{"size":"M"}`. TinyCart accepts simple string/number/boolean values only and drops nested objects.
+- `data-tc-img`: optional http(s) or relative thumbnail URL for the cart row. It is display-only and is not sent in checkout JSON.
 - `data-tc-stock`: optional client-side stock cap.
 - `data-tc-sig`: optional HMAC signature for signed product data.
 - `data-tc-exp`: optional Unix expiry timestamp paired with `data-tc-sig`.
@@ -322,9 +323,9 @@ Recommended daily flow:
 ## Sample Product Buttons
 
 ```html
-<button data-tc-id="tee-001" data-tc-name="TinyCart Tee" data-tc-price="24.00" data-tc-options='{"size":"M","color":"Black"}'>Add tee</button>
-<button data-tc-id="mug-001" data-tc-name="Checkout Mug" data-tc-price="18.00" data-tc-options='{"finish":"Matte"}'>Add mug</button>
-<button data-tc-id="sticker-001" data-tc-name="Script Tag Sticker Pack" data-tc-price="7.00" data-tc-qty="2">Add stickers</button>
+<button data-tc-id="tee-001" data-tc-name="TinyCart Tee" data-tc-price="24.00" data-tc-img="product-tee.svg" data-tc-options='{"size":"M","color":"Black"}'>Add tee</button>
+<button data-tc-id="mug-001" data-tc-name="Checkout Mug" data-tc-price="18.00" data-tc-img="product-mug.svg" data-tc-options='{"finish":"Matte"}'>Add mug</button>
+<button data-tc-id="sticker-001" data-tc-name="Script Tag Sticker Pack" data-tc-price="7.00" data-tc-img="product-stickers.svg" data-tc-qty="2">Add stickers</button>
 
 <script src="tinycart.js" data-tc-config='{"cartKey":"demo-store","currency":"USD","apiCheckout":"/checkout.php","apiCoupon":"/coupon.php","paymentMethods":["online","cod"],"defaultPaymentMethod":"cod","accent":"#1A73E8"}'></script>
 ```

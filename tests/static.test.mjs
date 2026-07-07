@@ -23,6 +23,9 @@ for (const file of [
   "robots.txt",
   "sitemap.xml",
   "site.js",
+  "product-tee.svg",
+  "product-mug.svg",
+  "product-stickers.svg",
   "favicon-32.png",
   "apple-touch-icon.png",
   "site.css",
@@ -265,7 +268,7 @@ assert.ok(pagesWorkflow.includes("actions/configure-pages@v5"), "Pages workflow 
 assert.ok(pagesWorkflow.includes("actions/upload-pages-artifact@v3"), "Pages workflow should upload a Pages artifact");
 assert.ok(pagesWorkflow.includes("actions/deploy-pages@v5"), "Pages workflow should deploy with the official Pages action");
 assert.ok(pagesWorkflow.includes("touch _site/.nojekyll"), "Pages workflow should bypass Jekyll for the static docs site");
-for (const token of ["404.html", "site.js", "robots.txt", "sitemap.xml", "favicon-32.png", "apple-touch-icon.png", "og-image.png"]) {
+for (const token of ["404.html", "site.js", "robots.txt", "sitemap.xml", "favicon-32.png", "apple-touch-icon.png", "og-image.png", "product-tee.svg", "product-mug.svg", "product-stickers.svg"]) {
   assert.ok(pagesWorkflow.includes(token), `Pages workflow should publish ${token}`);
 }
 assert.ok(!pagesWorkflow.includes("checkout.php"), "Pages workflow should not publish server endpoints");
@@ -328,6 +331,9 @@ assert.ok(siteCss.includes("clamp(44px, 7vw, 76px)"), "landing sections should k
 assert.ok(siteCss.includes("scrollbar-color: var(--fg) var(--soft)"), "landing scrollbar should match the site design");
 assert.ok(index.includes("The $0, self-hosted cart."), "hero should use the trust-focused one-liner");
 assert.ok(index.includes('class="cart-proof"'), "hero should render a real cart replica instead of an abstract diagram");
+for (const token of ['data-tc-img="product-tee.svg"', 'data-tc-img="product-mug.svg"', 'data-tc-img="product-stickers.svg"', 'class="product-thumb"']) {
+  assert.ok(index.includes(token), `landing demo should include ${token}`);
+}
 assert.ok(index.includes("Cash on delivery") && index.includes("SAVE10 applied"), "hero cart replica should show COD and an applied coupon");
 assert.ok(index.includes("v0.2.0") && index.includes("MIT") && index.includes("PHP 8+"), "hero should include release/license/runtime metadata");
 assert.ok(index.includes("img.shields.io/github/stars/tanzir71/tinycartjs") && index.includes('loading="lazy"'), "hero should include a lazy GitHub stars badge");
@@ -359,9 +365,17 @@ for (const token of ["--bg: #0b0b0b", "--fg: #f5f5f5", "--line: #2a2a2a", "--sof
   assert.ok(siteCss.includes(token), `site dark mode should define ${token}`);
 }
 
+const readmeHtmlDocs = read("README.md");
+for (const token of ["data-tc-img", "display-only", "not sent in checkout JSON"]) {
+  assert.ok(readmeHtmlDocs.includes(token), `README should document thumbnail behavior: ${token}`);
+}
+
 const docsHtml = read("docs.html");
 for (const token of ["TinyCart Docs", "data-tc-id", "tinycart.init", "apiCheckout", "catalogUrl", "Developer API"]) {
   assert.ok(docsHtml.includes(token), `docs.html should include ${token}`);
+}
+for (const token of ["data-tc-img", "display only", "never sent in the checkout payload"]) {
+  assert.ok(docsHtml.includes(token), `docs.html should document thumbnail behavior: ${token}`);
 }
 for (const token of [
   "Checkout payload and response",

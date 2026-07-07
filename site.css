@@ -568,6 +568,14 @@ footer { border-top: 1px solid var(--line); }
   padding: 16px;
   background: #fff;
 }
+.home .product-thumb {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
 .home .product .meta strong { display: block; font-size: 15px; font-weight: 700; }
 .home .product .meta span { display: block; margin-top: 2px; color: var(--faint); font-size: 13px; }
 .home .product .price { font: 700 15px/1 var(--mono); }

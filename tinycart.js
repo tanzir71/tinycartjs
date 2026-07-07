@@ -153,6 +153,11 @@ const email = str(value, 254);
 return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
 }
 
+function safeImg(value) {
+const url = str(value, 500);
+return url && (!/^[a-z][a-z0-9+.-]*:/i.test(url) || /^https?:/i.test(url)) ? url : "";
+}
+
 function normalizePaymentMethods(methods) {
 const allowed = ["online", "cod", "manual"];
 const unique = [];
@@ -340,6 +345,7 @@ if (!id || !name || !Number.isFinite(cents) || cents < 0) return null;
 const options = sanitizeOptions(input.options);
 const sig = str(input.sig || input.signature || "", 512);
 const exp = str(input.exp || input.expires || "", 40);
+const img = safeImg(input.img || input.image || "");
 return {
   key: itemKey({ id, options }),
   id,
@@ -349,7 +355,8 @@ return {
   options,
   stock,
   sig,
-  exp
+  exp,
+  img
 };
 }
 
@@ -497,6 +504,7 @@ return {
   priceCents: product ? product.price_cents : undefined,
   qty: el.getAttribute("data-tc-qty") || 1,
   options: parseOptions(el.getAttribute("data-tc-options")),
+  img: el.getAttribute("data-tc-img"),
   stock: product ? product.stock : el.getAttribute("data-tc-stock"),
   sig: el.getAttribute("data-tc-sig"),
   exp: el.getAttribute("data-tc-exp")
@@ -570,6 +578,8 @@ style.textContent = `
 .tc-body::-webkit-scrollbar-thumb{background:var(--f);border:2px solid var(--s)}
 .tc-empty{padding:28px 0;color:var(--m);text-align:center;font-size:14px}
 .tc-item{display:grid;grid-template-columns:1fr auto;gap:10px;padding:12px 0;border-bottom:var(--bd)}
+.tc-has-img{grid-template-columns:44px 1fr auto;align-items:start}
+.tc-thumb{width:44px;height:44px;border:var(--bd);border-radius:8px;background:var(--s);object-fit:cover}
 .tc-name{font-weight:750;font-size:14px;line-height:1.25}
 .tc-options{margin-top:5px;color:var(--m);font-size:12px;line-height:1.35;word-break:break-word}
 .tc-price{margin-top:7px;font-weight:700;font-size:13px}
@@ -785,8 +795,16 @@ if (!s.i.length) {
 }
 
 s.i.forEach((item) => {
-  const row = create("article", "tc-item");
+  const row = create("article", item.img ? "tc-item tc-has-img" : "tc-item");
   const main = create("div");
+  let thumb = null;
+  if (item.img) {
+    thumb = create("img", "tc-thumb");
+    thumb.setAttribute("src", item.img);
+    thumb.setAttribute("loading", "lazy");
+    thumb.setAttribute("alt", "");
+    thumb.setAttribute("referrerpolicy", "no-referrer");
+  }
   main.append(create("div", "tc-name", item.name));
   const optionText = optionsLabel(item.options);
   if (optionText) main.append(create("div", "tc-options", optionText));
@@ -820,6 +838,7 @@ s.i.forEach((item) => {
   main.append(actions);
 
   const lineTotal = create("strong", "", money(item.priceCents * item.qty));
+  if (thumb) row.append(thumb);
   row.append(main, lineTotal);
   s.list.append(row);
 });

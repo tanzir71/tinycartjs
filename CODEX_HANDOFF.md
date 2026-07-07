@@ -281,7 +281,7 @@ Byte budget note: before B tasks, do B0.
   - [ ] Order ID copy works; COD vs online variants render correctly.
   - [ ] Size ceiling holds.
 
-- [ ] **B2. Optional product thumbnails.**
+- [x] **B2. Optional product thumbnails.**
   Files: `tinycart.js`, `index.html` (demo), `README.md`, `docs.html`.
   New optional `data-tc-img` attribute (absolute or relative URL). Render a
   44×44 thumbnail in cart rows (`img` with `loading="lazy"`, `alt=""`,

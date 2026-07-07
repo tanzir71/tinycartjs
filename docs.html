@@ -67,6 +67,7 @@
   data-tc-id="tee-001"
   data-tc-name="TinyCart Tee"
   data-tc-price="24.00"
+  data-tc-img="product-tee.svg"
   data-tc-qty="1"
   data-tc-options='{"size":"M","color":"Black"}'&gt;
   Add tee
@@ -86,6 +87,7 @@
               <li><code>data-tc-name</code> is display text. TinyCart inserts it with safe text APIs.</li>
               <li><code>data-tc-price</code> is a decimal display price. Checkout must re-check it server-side.</li>
               <li><code>data-tc-qty</code>, <code>data-tc-options</code>, and <code>data-tc-stock</code> control defaults, variants, and client-side caps.</li>
+              <li><code>data-tc-img</code> accepts an http(s) or relative thumbnail URL for cart display only. It is never sent in the checkout payload.</li>
               <li><code>data-tc-sig</code> and <code>data-tc-exp</code> carry optional HMAC product signatures.</li>
             </ul>
           </section>

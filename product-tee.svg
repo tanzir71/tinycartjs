@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="TinyCart tee">
+  <rect width="64" height="64" rx="12" fill="#f4f1ea"/>
+  <path d="M22 16l7 4h6l7-4 10 9-7 8-4-3v21H23V30l-4 3-7-8 10-9z" fill="#111"/>
+  <path d="M29 20h6l-3 5-3-5z" fill="#f4f1ea"/>
+</svg>

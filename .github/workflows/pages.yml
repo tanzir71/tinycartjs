@@ -48,6 +48,9 @@ jobs:
             site.js \
             tinycart.js \
             og-image.png \
+            product-tee.svg \
+            product-mug.svg \
+            product-stickers.svg \
             favicon-32.png \
             apple-touch-icon.png \
             robots.txt \
