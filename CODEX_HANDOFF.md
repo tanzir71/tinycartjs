@@ -181,7 +181,7 @@ aesthetics. Every section added must show the product doing real work
   - [ ] Zero requests to fonts.googleapis.com / gstatic across the site.
   - [ ] Pasting the URL into a link-preview checker shows title, description, image.
 
-- [ ] **A3. Unify the design system + strip BOMs.**
+- [x] **A3. Unify the design system + strip BOMs.**
   Files: `index.html`, `site.css`, all HTML pages.
   Move `index.html`'s inline CSS into `site.css` (dedupe against what's there;
   page-specific rules get a `.home` body class). Remove UTF-8 BOMs from all

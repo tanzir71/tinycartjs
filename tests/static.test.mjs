@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
@@ -263,6 +263,7 @@ assert.ok(!pagesWorkflow.includes("checkout.php"), "Pages workflow should not pu
 assert.ok(!pagesWorkflow.includes("tests/"), "Pages workflow should not publish test files");
 
 const index = read("index.html");
+const siteCss = read("site.css");
 const publicHtmlPages = [
   "index.html",
   "docs.html",
@@ -291,10 +292,19 @@ for (const page of ["docs.html", "setup.html", "security.html", "compare.html"])
   assert.ok(index.includes(`href="${page}"`), `landing should link to ${page}`);
 }
 assert.doesNotMatch(index, /href="(?:README|SETUP|SECURITY)\.md"/, "landing should not send public docs traffic to Markdown files");
-assert.ok(index.includes("max-width: 760px"), "landing should use a compact hero measure");
-assert.ok(index.includes("clamp(40px, 6.4vw, 72px)"), "landing headline should avoid oversized display text");
-assert.ok(index.includes("clamp(44px, 7vw, 76px)"), "landing sections should keep tighter vertical rhythm");
-assert.ok(index.includes("scrollbar-color: var(--fg) var(--soft)"), "landing scrollbar should match the site design");
+assert.doesNotMatch(index, /<style[\s\S]*?<\/style>/i, "index.html should use site.css instead of an inline style block");
+for (const page of publicHtmlPages) {
+  assert.equal(normalizeMarkup(extractElement(read(page), "header")), normalizeMarkup(extractElement(index, "header")), `${page} should share the landing header markup`);
+  assert.equal(normalizeMarkup(extractElement(read(page), "footer")), normalizeMarkup(extractElement(index, "footer")), `${page} should share the landing footer markup`);
+}
+for (const file of listTextFiles(root)) {
+  const bytes = readFileSync(join(root, file));
+  assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], `${file} should not start with a UTF-8 BOM`);
+}
+assert.ok(siteCss.includes("max-width: 760px"), "landing should use a compact hero measure");
+assert.ok(siteCss.includes("clamp(40px, 6.4vw, 72px)"), "landing headline should avoid oversized display text");
+assert.ok(siteCss.includes("clamp(44px, 7vw, 76px)"), "landing sections should keep tighter vertical rhythm");
+assert.ok(siteCss.includes("scrollbar-color: var(--fg) var(--soft)"), "landing scrollbar should match the site design");
 assert.ok(index.includes("The $0, self-hosted cart."), "hero should use the trust-focused one-liner");
 assert.ok(index.includes('class="cart-proof"'), "hero should render a real cart replica instead of an abstract diagram");
 assert.ok(index.includes("Cash on delivery") && index.includes("SAVE10 applied"), "hero cart replica should show COD and an applied coupon");
@@ -311,7 +321,6 @@ for (const token of [
   assert.ok(index.includes(token), `landing should explain ${token} in the shopping flow`);
 }
 
-const siteCss = read("site.css");
 for (const token of ["scrollbar-color: var(--fg) var(--soft)", ".diagram-wrap", ".comparison-table", ".doc-shell"]) {
   assert.ok(siteCss.includes(token), `site.css should include ${token}`);
 }
@@ -376,4 +385,27 @@ console.log("Static TinyCart checks passed.");
 
 function stripLiquidRawBlocks(markdown) {
   return markdown.replace(/{%\s*raw\s*%}[\s\S]*?{%\s*endraw\s*%}/g, "");
+}
+
+function extractElement(html, tag) {
+  return html.match(new RegExp(`<${tag}[\\s\\S]*?</${tag}>`, "i"))?.[0] ?? "";
+}
+
+function normalizeMarkup(markup) {
+  return markup.replace(/\s+/g, " ").trim();
+}
+
+function listTextFiles(dir, prefix = "") {
+  const files = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === ".git" || entry.name === "node_modules") continue;
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const abs = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listTextFiles(abs, rel));
+    } else if (/\.(html|css|js|php|md|mjs|json|xml|txt|yml|yaml|htaccess)$/i.test(entry.name) || entry.name.startsWith(".")) {
+      files.push(rel);
+    }
+  }
+  return files;
 }
