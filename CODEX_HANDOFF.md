@@ -242,7 +242,7 @@ aesthetics. Every section added must show the product doing real work
   - [ ] FAQ JSON-LD validates in Google's Rich Results test format.
   - [ ] Shopify page mentions the 2025 deprecation with dates.
 
-- [ ] **A8. Site hygiene: 404, sitemap, robots, favicons, copy buttons.**
+- [x] **A8. Site hygiene: 404, sitemap, robots, favicons, copy buttons.**
   Files: new `404.html`, `sitemap.xml`, `robots.txt`; all pages.
   404 in site style linking home/docs. Sitemap lists all public pages. Add
   `apple-touch-icon.png` + 32px PNG favicon alongside the SVG. Add a "copy"

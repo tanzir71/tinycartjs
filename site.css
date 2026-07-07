@@ -192,6 +192,20 @@ h3 { font-size: 17px; line-height: 1.25; font-weight: 750; }
   font: 500 12.5px/1.7 var(--mono);
   white-space: pre;
 }
+pre { position: relative; }
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-height: 30px;
+  border: 1px solid rgba(255,255,255,.24);
+  background: #111;
+  color: #fff;
+  padding: 0 10px;
+  font: 800 11px/1 var(--mono);
+  cursor: pointer;
+}
+.copy-btn[data-copied="true"] { background: var(--accent); border-color: var(--accent); }
 code { font-family: var(--mono); font-size: 0.92em; }
 .inline-code { padding: 2px 6px; border: 1px solid var(--line); background: var(--soft); }
 .diagram-wrap {

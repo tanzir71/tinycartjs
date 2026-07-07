@@ -19,6 +19,12 @@ for (const file of [
   "CHANGELOG.md",
   "package.json",
   "index.html",
+  "404.html",
+  "robots.txt",
+  "sitemap.xml",
+  "site.js",
+  "favicon-32.png",
+  "apple-touch-icon.png",
   "site.css",
   "docs.html",
   "setup.html",
@@ -259,6 +265,9 @@ assert.ok(pagesWorkflow.includes("actions/configure-pages@v5"), "Pages workflow 
 assert.ok(pagesWorkflow.includes("actions/upload-pages-artifact@v3"), "Pages workflow should upload a Pages artifact");
 assert.ok(pagesWorkflow.includes("actions/deploy-pages@v5"), "Pages workflow should deploy with the official Pages action");
 assert.ok(pagesWorkflow.includes("touch _site/.nojekyll"), "Pages workflow should bypass Jekyll for the static docs site");
+for (const token of ["404.html", "site.js", "robots.txt", "sitemap.xml", "favicon-32.png", "apple-touch-icon.png", "og-image.png"]) {
+  assert.ok(pagesWorkflow.includes(token), `Pages workflow should publish ${token}`);
+}
 assert.ok(!pagesWorkflow.includes("checkout.php"), "Pages workflow should not publish server endpoints");
 assert.ok(!pagesWorkflow.includes("tests/"), "Pages workflow should not publish test files");
 
@@ -266,6 +275,7 @@ const index = read("index.html");
 const siteCss = read("site.css");
 const publicHtmlPages = [
   "index.html",
+  "404.html",
   "docs.html",
   "setup.html",
   "security.html",
@@ -277,6 +287,8 @@ const publicHtmlPages = [
 ];
 assert.ok(existsSync(join(root, "og-image.png")), "social preview image should exist");
 assert.ok(statSync(join(root, "og-image.png")).size > 1000, "social preview image should be a real PNG asset");
+assert.ok(statSync(join(root, "favicon-32.png")).size > 100, "32px PNG favicon should be a real asset");
+assert.ok(statSync(join(root, "apple-touch-icon.png")).size > 100, "Apple touch icon should be a real asset");
 for (const page of publicHtmlPages) {
   const html = read(page);
   assert.ok(!html.includes("fonts.googleapis.com") && !html.includes("fonts.gstatic.com"), `${page} should not request Google Fonts`);
@@ -286,7 +298,16 @@ for (const page of publicHtmlPages) {
 }
 for (const page of publicHtmlPages) {
   assert.ok(read(page).includes('rel="icon" type="image/svg+xml"'), `${page} should declare the TinyCart SVG favicon`);
+  assert.ok(read(page).includes('rel="icon" type="image/png"') && read(page).includes('rel="apple-touch-icon"'), `${page} should declare PNG favicons`);
+  assert.ok(read(page).includes('src="site.js"'), `${page} should load shared site.js`);
 }
+const siteJs = read("site.js");
+assert.ok(siteJs.split(/\r?\n/).length <= 30, "site.js should stay small enough for beginners to read");
+for (const token of ["navigator.clipboard", "Copied", "copy-btn"]) {
+  assert.ok(siteJs.includes(token), `site.js should implement copy buttons with ${token}`);
+}
+assert.ok(read("sitemap.xml").includes("<loc>https://tanzir71.github.io/tinycartjs/</loc>"), "sitemap should list the homepage");
+assert.ok(read("robots.txt").includes("Sitemap: https://tanzir71.github.io/tinycartjs/sitemap.xml"), "robots.txt should link the sitemap");
 assert.ok(index.includes("https://github.com/tanzir71/tinycartjs"), "landing should link to GitHub repo");
 for (const page of ["docs.html", "setup.html", "security.html", "compare.html"]) {
   assert.ok(index.includes(`href="${page}"`), `landing should link to ${page}`);
