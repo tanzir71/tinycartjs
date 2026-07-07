@@ -292,7 +292,7 @@ Byte budget note: before B tasks, do B0.
   - [ ] Demo products on `index.html` show small inline-SVG-based images.
   - [ ] `javascript:` and `data:` URLs are rejected. Payload unchanged (test).
 
-- [ ] **B3. Inline form validation + micro-polish.**
+- [x] **B3. Inline form validation + micro-polish.**
   Files: `tinycart.js`.
   Validate on blur and on submit: required name/phone/address, phone = digits,
   spaces, `+-()` and length 6–20, email format when present. Error text sits

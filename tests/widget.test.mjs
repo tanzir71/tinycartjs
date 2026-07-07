@@ -504,7 +504,8 @@ test("overrides visible widget strings through config", async () => {
   document.querySelector('[name="phone"]').value = "+15551234567";
   document.querySelector('[name="address"]').value = "1 Byte Lane";
   document.querySelector(".tc-form").dispatchEvent(new FakeEvent("submit"));
-  assert.equal(document.querySelector(".tc-toast").textContent, "Fill the required fields.");
+  assert.equal(document.querySelector(".tc-error").textContent, "Fill the required fields.");
+  assert.notEqual(document.querySelector(".tc-toast").textContent, "Fill the required fields.");
 });
 
 test("catalogUrl hydrates product truth and disables out-of-stock buttons", async () => {
@@ -591,6 +592,49 @@ test("renders sanitized product thumbnails without sending image URLs", async ()
   assert.equal(checkoutPayload.cart.items.length, 3);
   assert.equal("img" in checkoutPayload.cart.items[0], false);
   assert.equal(JSON.stringify(checkoutPayload).includes("images/tee.svg"), false);
+});
+
+test("validates checkout fields inline without toast spam", () => {
+  const { window, document } = createHarness();
+  window.tinycart.add({ id: "tee-001", name: "TinyCart Tee", price: "24.00", qty: 1 });
+  const toastBefore = document.querySelector(".tc-toast").textContent;
+  const form = document.querySelector(".tc-form");
+  form.dispatchEvent(new FakeEvent("submit"));
+
+  const name = document.querySelector('[name="name"]');
+  const phone = document.querySelector('[name="phone"]');
+  const address = document.querySelector('[name="address"]');
+  assert.equal(document.activeElement, name);
+  assert.equal(name.getAttribute("aria-invalid"), "true");
+  assert.equal(document.getElementById(name.getAttribute("aria-describedby")).textContent, "Please complete required fields.");
+  assert.equal(phone.getAttribute("aria-invalid"), "true");
+  assert.equal(address.getAttribute("aria-invalid"), "true");
+  assert.equal(document.querySelector(".tc-toast").textContent, toastBefore);
+
+  phone.value = "call me";
+  phone.dispatchEvent(new FakeEvent("blur"));
+  assert.equal(document.getElementById(phone.getAttribute("aria-describedby")).textContent, "Use 6-20 digits, spaces, +, -, or ().");
+
+  const email = document.querySelector('[name="email"]');
+  email.value = "bad-email";
+  email.dispatchEvent(new FakeEvent("blur"));
+  assert.equal(email.getAttribute("aria-invalid"), "true");
+  assert.equal(document.getElementById(email.getAttribute("aria-describedby")).textContent, "Enter a valid email.");
+});
+
+test("uses SVG polish for close, empty state, and added rows", () => {
+  const { window, document } = createHarness();
+  const css = document.getElementById("tinycart-style").textContent;
+
+  assert.equal(document.querySelector(".tc-iconbtn").textContent, "");
+  assert.ok(document.querySelector(".tc-x"));
+  assert.ok(document.querySelector(".tc-empty-icon"));
+  assert.equal(document.querySelector(".tc-empty-hint").textContent, "Browse products");
+  assert.match(css, /\.tc-added\{animation:tc-glow/);
+  assert.match(css, /prefers-reduced-motion:reduce[^{]*\{[^}]*\.tc-added/);
+
+  window.tinycart.add({ id: "tee-001", name: "TinyCart Tee", price: "24.00", qty: 1 });
+  assert.ok(document.querySelector(".tc-added"));
 });
 
 test("renders payment choices and submits the selected payment method", async () => {

@@ -60,8 +60,11 @@ couponInvalid: "Coupon not valid.",
 couponFailed: "Coupon validation failed.",
 couponApplied: "{{code}} applied.",
 addItem: "Add an item before checkout.",
-required: "Please complete required fields.",
-orderReceived: "Order received.",
+  required: "Please complete required fields.",
+  phoneInvalid: "Use 6-20 digits, spaces, +, -, or ().",
+  emailInvalid: "Enter a valid email.",
+  browseProducts: "Browse products",
+  orderReceived: "Order received.",
 orderPlaced: "Order placed",
 codDue: "Pay {{total}} in cash on delivery.",
 onlineNext: "Complete payment on the next page.",
@@ -119,11 +122,11 @@ const int = Number.parseInt;
 
 function htmlEscape(value) {
 return String(value == null ? "" : value).replace(/[&<>"']/g, (char) => ({
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;"
+"&": "&amp;",
+"<": "&lt;",
+">": "&gt;",
+'"': "&quot;",
+"'": "&#39;"
 })[char]);
 }
 
@@ -134,7 +137,7 @@ node.textContent = String(value == null ? "" : value);
 function safeTemplate(template, values = {}, allowTags = false) {
 const source = String(template == null ? "" : template);
 if (!allowTags && /<[^>]*>/g.test(source)) {
-  throw new Error("TinyCart template strings cannot contain tags.");
+throw new Error("TinyCart template strings cannot contain tags.");
 }
 return source.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_, key) => htmlEscape(values[key]));
 }
@@ -162,8 +165,8 @@ function normalizePaymentMethods(methods) {
 const allowed = ["online", "cod", "manual"];
 const unique = [];
 (Array.isArray(methods) ? methods : []).forEach((method) => {
-  const clean = str(method, 20).toLowerCase();
-  if (allowed.includes(clean) && !unique.includes(clean)) unique.push(clean);
+const clean = str(method, 20).toLowerCase();
+if (allowed.includes(clean) && !unique.includes(clean)) unique.push(clean);
 });
 return unique;
 }
@@ -179,7 +182,7 @@ return text(method === "cod" ? "paymentCod" : method === "manual" ? "paymentManu
 
 function toCents(value) {
 if (typeof value === "number" && Number.isFinite(value)) {
-  return Math.round(value * 100);
+return Math.round(value * 100);
 }
 const clean = String(value == null ? "" : value).trim();
 if (!/^\d+(\.\d{1,2})?$/.test(clean)) return NaN;
@@ -193,12 +196,12 @@ return Number((Number(cents || 0) / 100).toFixed(2));
 
 function money(cents) {
 try {
-  return new Intl.NumberFormat(s.c.locale || undefined, {
-    style: "currency",
-    currency: s.c.currency || "USD"
-  }).format(centsToDecimal(cents));
+return new Intl.NumberFormat(s.c.locale || undefined, {
+  style: "currency",
+  currency: s.c.currency || "USD"
+}).format(centsToDecimal(cents));
 } catch (_) {
-  return `${s.c.currency || "USD"} ${centsToDecimal(cents).toFixed(2)}`;
+return `${s.c.currency || "USD"} ${centsToDecimal(cents).toFixed(2)}`;
 }
 }
 
@@ -207,8 +210,8 @@ const raw = color.replace("#", "");
 const hex = raw.length === 3 ? raw.replace(/./g, "$&$&") : raw.slice(0, 6);
 if (!/^[0-9a-f]{6}$/i.test(hex)) return "#111111";
 const lum = [0, 2, 4].map((i) => int(hex.slice(i, i + 2), 16) / 255)
-  .map((c) => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
-  .reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
+.map((c) => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+.reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
 return 1.05 / (lum + 0.05) >= 4.5 ? color : "#111111";
 }
 
@@ -225,8 +228,8 @@ return `${str(item.id, 120)}::${stableStringify(item.options || {})}`;
 function debounce(fn, wait) {
 let timer = 0;
 return function debounced(...args) {
-  win.clearTimeout(timer);
-  timer = win.setTimeout(() => fn.apply(this, args), wait);
+win.clearTimeout(timer);
+timer = win.setTimeout(() => fn.apply(this, args), wait);
 };
 }
 
@@ -234,82 +237,82 @@ function throttle(fn, wait) {
 let last = 0;
 let timer = 0;
 return function throttled(...args) {
-  const remaining = wait - (now() - last);
-  if (remaining <= 0) {
-    win.clearTimeout(timer);
-    timer = 0;
+const remaining = wait - (now() - last);
+if (remaining <= 0) {
+  win.clearTimeout(timer);
+  timer = 0;
+  last = now();
+  fn.apply(this, args);
+} else if (!timer) {
+  timer = win.setTimeout(() => {
     last = now();
+    timer = 0;
     fn.apply(this, args);
-  } else if (!timer) {
-    timer = win.setTimeout(() => {
-      last = now();
-      timer = 0;
-      fn.apply(this, args);
-    }, remaining);
-  }
+  }, remaining);
+}
 };
 }
 
 function emit(eventName, detail = {}) {
 (s.h[eventName] || []).slice().forEach((handler) => {
-  try { handler(detail); } catch (err) { win.setTimeout(() => { throw err; }); }
+try { handler(detail); } catch (err) { win.setTimeout(() => { throw err; }); }
 });
 try {
-  doc.dispatchEvent(new CustomEvent(`tinycart:${eventName}`, { detail }));
+doc.dispatchEvent(new CustomEvent(`tinycart:${eventName}`, { detail }));
 } catch (_) {}
 }
 
 function loadCart() {
 try {
-  const raw = win.localStorage.getItem(storageKey());
-  if (!raw || raw.length > s.c.maxStorageBytes) return;
-  const saved = JSON.parse(raw);
-  if (!saved || !Array.isArray(saved.items)) return;
-  const version = saved.version == null ? 1 : Number(saved.version);
-  if (!Number.isFinite(version) || version > CART_VERSION || version < 1) {
-    win.localStorage.removeItem(storageKey());
-    return;
-  }
-  s.i = saved.items.map(normalizeItem).filter(Boolean).slice(0, s.c.maxItems);
-  s.cp = normalizeCoupon(saved.coupon);
+const raw = win.localStorage.getItem(storageKey());
+if (!raw || raw.length > s.c.maxStorageBytes) return;
+const saved = JSON.parse(raw);
+if (!saved || !Array.isArray(saved.items)) return;
+const version = saved.version == null ? 1 : Number(saved.version);
+if (!Number.isFinite(version) || version > CART_VERSION || version < 1) {
+  win.localStorage.removeItem(storageKey());
+  return;
+}
+s.i = saved.items.map(normalizeItem).filter(Boolean).slice(0, s.c.maxItems);
+s.cp = normalizeCoupon(saved.coupon);
 } catch (_) {
-  s.i = [];
-  s.cp = null;
+s.i = [];
+s.cp = null;
 }
 }
 
 function saveCart() {
 const payload = JSON.stringify({
-  version: CART_VERSION,
-  updatedAt: new Date().toISOString(),
-  coupon: s.cp,
-  items: s.i.slice(0, s.c.maxItems)
+version: CART_VERSION,
+updatedAt: new Date().toISOString(),
+coupon: s.cp,
+items: s.i.slice(0, s.c.maxItems)
 });
 if (payload.length > s.c.maxStorageBytes) {
-  toast(text("cartTooLarge"));
-  return false;
+toast(text("cartTooLarge"));
+return false;
 }
 try {
-  win.localStorage.setItem(storageKey(), payload);
-  return true;
+win.localStorage.setItem(storageKey(), payload);
+return true;
 } catch (_) {
-  toast(text("saveFailed"));
-  return false;
+toast(text("saveFailed"));
+return false;
 }
 }
 
 function loadQueue() {
 try {
-  const raw = win.localStorage.getItem(queueKey());
-  if (!raw || raw.length > s.c.maxQueueBytes) return [];
-  const parsed = JSON.parse(raw);
-  if (!Array.isArray(parsed)) return [];
-  const cutoff = now() - s.c.queueRetentionMs;
-  return parsed
-    .filter((entry) => entry && entry.createdAt > cutoff)
-    .slice(0, s.c.maxQueueItems);
+const raw = win.localStorage.getItem(queueKey());
+if (!raw || raw.length > s.c.maxQueueBytes) return [];
+const parsed = JSON.parse(raw);
+if (!Array.isArray(parsed)) return [];
+const cutoff = now() - s.c.queueRetentionMs;
+return parsed
+  .filter((entry) => entry && entry.createdAt > cutoff)
+  .slice(0, s.c.maxQueueItems);
 } catch (_) {
-  return [];
+return [];
 }
 }
 
@@ -317,10 +320,10 @@ function saveQueue(queue) {
 const compact = queue.slice(-s.c.maxQueueItems);
 const payload = JSON.stringify(compact);
 if (payload.length > s.c.maxQueueBytes) {
-  compact.splice(0, Math.ceil(compact.length / 2));
+compact.splice(0, Math.ceil(compact.length / 2));
 }
 try {
-  win.localStorage.setItem(queueKey(), JSON.stringify(compact));
+win.localStorage.setItem(queueKey(), JSON.stringify(compact));
 } catch (_) {}
 }
 
@@ -347,32 +350,32 @@ const sig = str(input.sig || input.signature || "", 512);
 const exp = str(input.exp || input.expires || "", 40);
 const img = safeImg(input.img || input.image || "");
 return {
-  key: itemKey({ id, options }),
-  id,
-  name,
-  priceCents: cents,
-  qty,
-  options,
-  stock,
-  sig,
-  exp,
-  img
+key: itemKey({ id, options }),
+id,
+name,
+priceCents: cents,
+qty,
+options,
+stock,
+sig,
+exp,
+img
 };
 }
 
 function sanitizeOptions(input) {
 if (!input || typeof input !== "object" || Array.isArray(input)) return {};
 const allowed = Array.isArray(s.c.allowedOptionKeys)
-  ? new Set(s.c.allowedOptionKeys.map((key) => str(key, 40)))
-  : null;
+? new Set(s.c.allowedOptionKeys.map((key) => str(key, 40)))
+: null;
 const clean = {};
 Object.keys(input).slice(0, 20).forEach((key) => {
-  const safeKey = str(key, 40);
-  if (!safeKey || safeKey.startsWith("__") || (allowed && !allowed.has(safeKey))) return;
-  const value = input[key];
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    clean[safeKey] = str(value, 120);
-  }
+const safeKey = str(key, 40);
+if (!safeKey || safeKey.startsWith("__") || (allowed && !allowed.has(safeKey))) return;
+const value = input[key];
+if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+  clean[safeKey] = str(value, 120);
+}
 });
 return clean;
 }
@@ -381,10 +384,10 @@ function totals() {
 const subtotal = s.i.reduce((sum, item) => sum + item.priceCents * item.qty, 0);
 const discount = s.cp ? clamp(Math.round(Number(s.cp.amount || 0)), 0, subtotal) : 0;
 return {
-  count: s.i.reduce((sum, item) => sum + item.qty, 0),
-  subtotal,
-  discount,
-  total: Math.max(0, subtotal - discount)
+count: s.i.reduce((sum, item) => sum + item.qty, 0),
+subtotal,
+discount,
+total: Math.max(0, subtotal - discount)
 };
 }
 
@@ -392,28 +395,29 @@ function recalcCoupon() {
 if (!s.cp) return;
 const subtotal = s.i.reduce((sum, item) => sum + item.priceCents * item.qty, 0);
 if (s.cp.type === "fixed") {
-  s.cp.amount = clamp(Math.round(Number(s.cp.value) * 100), 0, subtotal);
+s.cp.amount = clamp(Math.round(Number(s.cp.value) * 100), 0, subtotal);
 } else {
-  s.cp.amount = clamp(Math.round(subtotal * (Number(s.cp.value) / 100)), 0, subtotal);
+s.cp.amount = clamp(Math.round(subtotal * (Number(s.cp.value) / 100)), 0, subtotal);
 }
 }
 
 function add(input) {
 const item = normalizeItem(input);
 if (!item) {
-  toast(text("badProduct"));
-  return false;
+toast(text("badProduct"));
+return false;
 }
 const existing = s.i.find((candidate) => candidate.key === item.key);
 if (existing) {
-  existing.qty = clamp(existing.qty + item.qty, 1, existing.stock || 999);
+existing.qty = clamp(existing.qty + item.qty, 1, existing.stock || 999);
 } else {
-  if (s.i.length >= s.c.maxItems) {
-    toast(text("itemLimit"));
-    return false;
-  }
-  s.i.push(item);
+if (s.i.length >= s.c.maxItems) {
+  toast(text("itemLimit"));
+  return false;
 }
+s.i.push(item);
+}
+s.added = item.key;
 changed();
 toast(text("itemAdded", { name: item.name }));
 pulseCart();
@@ -430,12 +434,12 @@ function update(itemId, patch = {}) {
 const item = s.i.find((candidate) => candidate.key === itemId || candidate.id === itemId);
 if (!item) return;
 if (patch.qty != null) {
-  const nextQty = int(patch.qty, 10);
-  if (!Number.isFinite(nextQty) || nextQty <= 0) {
-    remove(item.key);
-    return;
-  }
-  item.qty = clamp(nextQty, 1, item.stock || 999);
+const nextQty = int(patch.qty, 10);
+if (!Number.isFinite(nextQty) || nextQty <= 0) {
+  remove(item.key);
+  return;
+}
+item.qty = clamp(nextQty, 1, item.stock || 999);
 }
 changed();
 }
@@ -456,41 +460,41 @@ emit("cart:updated", getCart());
 function getCart() {
 const sum = totals();
 return {
-  cartKey: s.c.cartKey,
-  currency: s.c.currency,
-  items: s.i.map((item) => ({
-    id: item.id,
-    key: item.key,
-    name: item.name,
-    price: centsToDecimal(item.priceCents),
-    priceCents: item.priceCents,
-    qty: item.qty,
-    options: item.options,
-    stock: item.stock,
-    sig: item.sig,
-    exp: item.exp
-  })),
-  coupon: s.cp,
-  totals: {
-    count: sum.count,
-    subtotal: centsToDecimal(sum.subtotal),
-    subtotalCents: sum.subtotal,
-    discount: centsToDecimal(sum.discount),
-    discountCents: sum.discount,
-    total: centsToDecimal(sum.total),
-    totalCents: sum.total
-  }
+cartKey: s.c.cartKey,
+currency: s.c.currency,
+items: s.i.map((item) => ({
+  id: item.id,
+  key: item.key,
+  name: item.name,
+  price: centsToDecimal(item.priceCents),
+  priceCents: item.priceCents,
+  qty: item.qty,
+  options: item.options,
+  stock: item.stock,
+  sig: item.sig,
+  exp: item.exp
+})),
+coupon: s.cp,
+totals: {
+  count: sum.count,
+  subtotal: centsToDecimal(sum.subtotal),
+  subtotalCents: sum.subtotal,
+  discount: centsToDecimal(sum.discount),
+  discountCents: sum.discount,
+  total: centsToDecimal(sum.total),
+  totalCents: sum.total
+}
 };
 }
 
 function parseOptions(raw) {
 if (!raw) return {};
 try {
-  const parsed = JSON.parse(raw);
-  return sanitizeOptions(parsed);
+const parsed = JSON.parse(raw);
+return sanitizeOptions(parsed);
 } catch (_) {
-  toast(text("badOptions"));
-  return {};
+toast(text("badOptions"));
+return {};
 }
 }
 
@@ -498,16 +502,16 @@ function itemFromElement(el) {
 const id = el.getAttribute("data-tc-id");
 const product = s.cat[id];
 return {
-  id,
-  name: product ? product.name : el.getAttribute("data-tc-name"),
-  price: product ? undefined : el.getAttribute("data-tc-price"),
-  priceCents: product ? product.price_cents : undefined,
-  qty: el.getAttribute("data-tc-qty") || 1,
-  options: parseOptions(el.getAttribute("data-tc-options")),
-  img: el.getAttribute("data-tc-img"),
-  stock: product ? product.stock : el.getAttribute("data-tc-stock"),
-  sig: el.getAttribute("data-tc-sig"),
-  exp: el.getAttribute("data-tc-exp")
+id,
+name: product ? product.name : el.getAttribute("data-tc-name"),
+price: product ? undefined : el.getAttribute("data-tc-price"),
+priceCents: product ? product.price_cents : undefined,
+qty: el.getAttribute("data-tc-qty") || 1,
+options: parseOptions(el.getAttribute("data-tc-options")),
+img: el.getAttribute("data-tc-img"),
+stock: product ? product.stock : el.getAttribute("data-tc-stock"),
+sig: el.getAttribute("data-tc-sig"),
+exp: el.getAttribute("data-tc-exp")
 };
 }
 
@@ -538,13 +542,13 @@ function svg(tag) {
 return doc.createElementNS ? doc.createElementNS("http://www.w3.org/2000/svg", tag) : doc.createElement(tag);
 }
 
-function checkIcon() {
+function icon(cls, d) {
 const icon = svg("svg");
 const path = svg("path");
-icon.className = "tc-check";
+icon.className = cls;
 icon.setAttribute("viewBox", "0 0 24 24");
 icon.setAttribute("aria-hidden", "true");
-path.setAttribute("d", "M20 6L9 17l-5-5");
+path.setAttribute("d", d);
 path.setAttribute("fill", "none");
 path.setAttribute("stroke", "currentColor");
 path.setAttribute("stroke-width", "3");
@@ -553,6 +557,8 @@ path.setAttribute("stroke-linejoin", "round");
 icon.append(path);
 return icon;
 }
+
+const checkIcon = () => icon("tc-check", "M20 6L9 17l-5-5");
 
 function injectStyles() {
 if (doc.getElementById("tinycart-style")) return;
@@ -571,14 +577,18 @@ style.textContent = `
 .tc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px 10px;border-bottom:var(--bd)}
 .tc-title{margin:0;font-size:16px;line-height:1.2;font-weight:800;letter-spacing:0}
 .tc-iconbtn{display:grid;place-items:center;width:38px;height:38px;border:var(--bd);border-radius:999px;background:var(--b);color:var(--f);cursor:pointer}
+.tc-x{width:18px;height:18px}
 .tc-iconbtn:hover,.tc-iconbtn:focus-visible{border-color:var(--f);outline:2px solid var(--a);outline-offset:2px}
 .tc-body{overflow:auto;scrollbar-color:var(--f) var(--s);scrollbar-width:thin;padding:8px 16px 12px;overscroll-behavior:contain}
 .tc-body::-webkit-scrollbar{width:10px}
 .tc-body::-webkit-scrollbar-track{background:var(--s)}
 .tc-body::-webkit-scrollbar-thumb{background:var(--f);border:2px solid var(--s)}
-.tc-empty{padding:28px 0;color:var(--m);text-align:center;font-size:14px}
+.tc-empty{display:grid;gap:7px;justify-items:center;padding:28px 0;color:var(--m);text-align:center;font-size:14px}
+.tc-empty-icon{width:34px;height:34px}
+.tc-empty-hint{display:block;font-size:12px}
 .tc-item{display:grid;grid-template-columns:1fr auto;gap:10px;padding:12px 0;border-bottom:var(--bd)}
 .tc-has-img{grid-template-columns:44px 1fr auto;align-items:start}
+.tc-added{animation:tc-glow .7s ease}
 .tc-thumb{width:44px;height:44px;border:var(--bd);border-radius:8px;background:var(--s);object-fit:cover}
 .tc-name{font-weight:750;font-size:14px;line-height:1.25}
 .tc-options{margin-top:5px;color:var(--m);font-size:12px;line-height:1.35;word-break:break-word}
@@ -602,6 +612,8 @@ style.textContent = `
 .tc-coupon-status{min-height:16px;margin:6px 0 0;color:var(--m);font-size:12px}
 .tc-form{display:grid;gap:8px;margin-top:8px;padding-top:10px;border-top:var(--bd)}
 .tc-field span{display:block;margin:0 0 6px;font-size:12px;font-weight:750;color:var(--m)}
+.tc-error{min-height:15px;color:#b42318;font-size:12px}
+.tc-field [aria-invalid=true]{border-color:#b42318}
 .tc-payment{display:grid;gap:6px;padding-bottom:2px}
 .tc-payment>span{font-size:12px;font-weight:750;color:var(--m)}
 .tc-payment label{display:flex;align-items:center;gap:8px;min-height:34px;border:var(--bd);border-radius:999px;padding:0 10px;font-size:13px;font-weight:650}
@@ -619,9 +631,10 @@ style.textContent = `
 .tc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 @media (min-width:720px){.tc-float{right:24px;bottom:24px}.tc-dialog{inset:24px 24px 24px auto;width:min(420px,calc(100vw - 48px));max-height:calc(100dvh - 48px);border-radius:var(--r)}.tc-toast{left:auto;right:24px;bottom:88px;width:320px}.tc-body{padding-inline:18px}.tc-head,.tc-foot{padding-inline:18px}}
 @media (prefers-color-scheme:dark){.tc-root:not([style*="--tc-bg"]){--tc-bg:#111;--tc-fg:#f5f5f5;--tc-muted:#bbb;--tc-line:#333;--tc-soft:#1b1b1b;color-scheme:dark}}
-@media (prefers-reduced-motion:reduce){.tc-float,.tc-toast{transition:none;animation:none!important}}
+@media (prefers-reduced-motion:reduce){.tc-float,.tc-toast,.tc-added{transition:none;animation:none!important}}
 @keyframes tc-pop{50%{transform:scale(1.04)}}
 @keyframes tc-slide{from{transform:translateY(8px);opacity:.2}to{transform:translateY(0);opacity:1}}
+@keyframes tc-glow{50%{background:var(--s)}}
 `;
 doc.head.appendChild(style);
 }
@@ -646,7 +659,7 @@ float.addEventListener("click", openCart);
 const backdrop = create("div", "tc-backdrop");
 backdrop.setAttribute("aria-hidden", "true");
 backdrop.addEventListener("click", (event) => {
-  if (event.target === backdrop) closeCart();
+if (event.target === backdrop) closeCart();
 });
 
 const dialog = create("section", "tc-dialog");
@@ -657,10 +670,11 @@ dialog.setAttribute("aria-labelledby", "tc-title");
 const head = create("div", "tc-head");
 const title = create("h2", "tc-title", text("title"));
 title.id = "tc-title";
-const close = create("button", "tc-iconbtn", "x");
+const close = create("button", "tc-iconbtn");
 close.type = "button";
 close.setAttribute("aria-label", text("closeCart"));
 close.addEventListener("click", closeCart);
+close.append(icon("tc-x", "M6 6l12 12M18 6L6 18"));
 head.append(title, close);
 
 const body = create("div", "tc-body");
@@ -687,10 +701,10 @@ form.noValidate = true;
 const payment = paymentControls();
 if (payment) form.append(payment);
 form.append(
-  field(text("name"), "name", "text", true),
-  field(text("phone"), "phone", "tel", true),
-  field(text("email"), "email", "email", false),
-  field(text("address"), "address", "textarea", true)
+field(text("name"), "name", "text", true),
+field(text("phone"), "phone", "tel", true),
+field(text("email"), "email", "email", false),
+field(text("address"), "address", "textarea", true)
 );
 form.addEventListener("submit", checkout);
 body.append(form);
@@ -744,16 +758,16 @@ wrap.setAttribute("role", "radiogroup");
 wrap.setAttribute("aria-label", text("paymentMethod"));
 wrap.append(create("span", "", text("paymentMethod")));
 methods.forEach((method) => {
-  const label = create("label");
-  const input = create("input");
-  input.type = "radio";
-  input.name = "paymentMethod";
-  input.value = method;
-  input.checked = method === s.c.defaultPaymentMethod;
-  label.append(input, create("span", "", paymentLabel(method)));
-  if (label.textContent === "") label.textContent = paymentLabel(method);
-  wrap.append(label);
-  s.pay.push(input);
+const label = create("label");
+const input = create("input");
+input.type = "radio";
+input.name = "paymentMethod";
+input.value = method;
+input.checked = method === s.c.defaultPaymentMethod;
+label.append(input, create("span", "", paymentLabel(method)));
+if (label.textContent === "") label.textContent = paymentLabel(method);
+wrap.append(label);
+s.pay.push(input);
 });
 return wrap;
 }
@@ -761,19 +775,45 @@ return wrap;
 function field(label, name, type, required) {
 const wrap = create("label", "tc-field");
 const span = create("span", "", label);
+const err = create("small", "tc-error");
 let input;
 if (type === "textarea") {
-  input = create("textarea");
-  input.rows = 3;
+input = create("textarea");
+input.rows = 3;
 } else {
-  input = create("input");
-  input.type = type;
+input = create("input");
+input.type = type;
 }
 input.name = name;
 input.autocomplete = name === "email" ? "email" : name;
 if (required) input.required = true;
-wrap.append(span, input);
+err.id = `tc-${name}-error`;
+err.setAttribute("aria-live", "polite");
+input.setAttribute("aria-describedby", err.id);
+input.addEventListener("blur", () => validateField(input));
+wrap.append(span, input, err);
 return wrap;
+}
+
+function validateField(input) {
+const value = str(input.value, input.name === "address" ? 500 : 120);
+let message = "";
+if (input.required && !value) message = text("required");
+else if (input.name === "phone" && !/^[0-9+\-() ]{6,20}$/.test(value)) message = text("phoneInvalid");
+else if (input.name === "email" && value && !safeEmail(value)) message = text("emailInvalid");
+input.setAttribute("aria-invalid", message ? "true" : "false");
+setText(doc.getElementById(input.getAttribute("aria-describedby")), message);
+return !message;
+}
+
+function validateForm() {
+let first = null;
+Array.from(s.form.querySelectorAll("input,textarea")).forEach((input) => {
+if (!input.name || input.name === "paymentMethod") return;
+if (!validateField(input) && !first) first = input;
+});
+if (first) first.focus();
+return !first;
 }
 
 function render() {
@@ -784,63 +824,65 @@ setText(s.total, money(sum.subtotal));
 setText(s.discount, `-${money(sum.discount)}`);
 setText(s.mTotal, money(sum.total));
 if (s.ci && s.cp && s.ci.value.toUpperCase() !== s.cp.code) {
-  s.ci.value = s.cp.code;
+s.ci.value = s.cp.code;
 }
 if (s.done) return;
 
 s.list.replaceChildren();
 if (!s.i.length) {
-  s.list.append(create("div", "tc-empty", text("empty")));
-  return;
+const empty = create("div", "tc-empty", text("empty"));
+empty.append(icon("tc-empty-icon", "M6 7h14l-2 8H8L6 7zM9 21h0M17 21h0M6 7L5 3H2"), create("small", "tc-empty-hint", text("browseProducts")));
+s.list.append(empty);
+return;
 }
 
 s.i.forEach((item) => {
-  const row = create("article", item.img ? "tc-item tc-has-img" : "tc-item");
-  const main = create("div");
-  let thumb = null;
-  if (item.img) {
-    thumb = create("img", "tc-thumb");
-    thumb.setAttribute("src", item.img);
-    thumb.setAttribute("loading", "lazy");
-    thumb.setAttribute("alt", "");
-    thumb.setAttribute("referrerpolicy", "no-referrer");
-  }
-  main.append(create("div", "tc-name", item.name));
-  const optionText = optionsLabel(item.options);
-  if (optionText) main.append(create("div", "tc-options", optionText));
-  main.append(create("div", "tc-price", money(item.priceCents)));
+const row = create("article", `tc-item${item.img ? " tc-has-img" : ""}${item.key === s.added ? " tc-added" : ""}`);
+const main = create("div");
+let thumb = null;
+if (item.img) {
+  thumb = create("img", "tc-thumb");
+  thumb.setAttribute("src", item.img);
+  thumb.setAttribute("loading", "lazy");
+  thumb.setAttribute("alt", "");
+  thumb.setAttribute("referrerpolicy", "no-referrer");
+}
+main.append(create("div", "tc-name", item.name));
+const optionText = optionsLabel(item.options);
+if (optionText) main.append(create("div", "tc-options", optionText));
+main.append(create("div", "tc-price", money(item.priceCents)));
 
-  const actions = create("div", "tc-row-actions");
-  const qty = create("div", "tc-qty");
-  const minus = create("button", "", "-");
-  minus.type = "button";
-  minus.setAttribute("aria-label", text("decQty", { name: item.name }));
-  const input = create("input");
-  input.type = "number";
-  input.min = "1";
-  input.step = "1";
-  input.inputMode = "numeric";
-  input.value = String(item.qty);
-  input.setAttribute("aria-label", text("qtyFor", { name: item.name }));
-  if (item.stock) input.max = String(item.stock);
-  const plus = create("button", "", "+");
-  plus.type = "button";
-  plus.setAttribute("aria-label", text("incQty", { name: item.name }));
-  const delayedUpdate = debounce(() => update(item.key, { qty: input.value }), 250);
-  minus.addEventListener("click", () => update(item.key, { qty: item.qty - 1 }));
-  plus.addEventListener("click", () => update(item.key, { qty: item.qty + 1 }));
-  input.addEventListener("input", delayedUpdate);
-  qty.append(minus, input, plus);
-  const removeBtn = create("button", "tc-remove", text("remove"));
-  removeBtn.type = "button";
-  removeBtn.addEventListener("click", () => remove(item.key));
-  actions.append(qty, removeBtn);
-  main.append(actions);
+const actions = create("div", "tc-row-actions");
+const qty = create("div", "tc-qty");
+const minus = create("button", "", "-");
+minus.type = "button";
+minus.setAttribute("aria-label", text("decQty", { name: item.name }));
+const input = create("input");
+input.type = "number";
+input.min = "1";
+input.step = "1";
+input.inputMode = "numeric";
+input.value = String(item.qty);
+input.setAttribute("aria-label", text("qtyFor", { name: item.name }));
+if (item.stock) input.max = String(item.stock);
+const plus = create("button", "", "+");
+plus.type = "button";
+plus.setAttribute("aria-label", text("incQty", { name: item.name }));
+const delayedUpdate = debounce(() => update(item.key, { qty: input.value }), 250);
+minus.addEventListener("click", () => update(item.key, { qty: item.qty - 1 }));
+plus.addEventListener("click", () => update(item.key, { qty: item.qty + 1 }));
+input.addEventListener("input", delayedUpdate);
+qty.append(minus, input, plus);
+const removeBtn = create("button", "tc-remove", text("remove"));
+removeBtn.type = "button";
+removeBtn.addEventListener("click", () => remove(item.key));
+actions.append(qty, removeBtn);
+main.append(actions);
 
-  const lineTotal = create("strong", "", money(item.priceCents * item.qty));
-  if (thumb) row.append(thumb);
-  row.append(main, lineTotal);
-  s.list.append(row);
+const lineTotal = create("strong", "", money(item.priceCents * item.qty));
+if (thumb) row.append(thumb);
+row.append(main, lineTotal);
+s.list.append(row);
 });
 }
 
@@ -848,9 +890,9 @@ function copyOrder(id, btn) {
 const done = () => setText(btn, text("copied"));
 const clip = win.navigator && win.navigator.clipboard;
 if (clip && clip.writeText) {
-  clip.writeText(id).then(done, done);
+clip.writeText(id).then(done, done);
 } else {
-  done();
+done();
 }
 }
 
@@ -870,15 +912,15 @@ const row = create("div", "tc-order");
 const copy = create("button", "tc-btn tc-copy", text("copyOrder"));
 const cont = create("button", "tc-btn tc-continue", text("continueShopping"));
 const message = method === "cod"
-  ? text("codDue", { total: totalText })
-  : (method === "online" || result && result.pay_url ? text("onlineNext") : text("orderReceived"));
+? text("codDue", { total: totalText })
+: (method === "online" || result && result.pay_url ? text("onlineNext") : text("orderReceived"));
 title.setAttribute("tabindex", "-1");
 copy.type = "button";
 cont.type = "button";
 copy.addEventListener("click", () => copyOrder(id, copy));
 cont.addEventListener("click", () => {
-  clear();
-  closeCart();
+clear();
+closeCart();
 });
 row.append(create("code", "tc-order-id", id), copy);
 box.append(checkIcon(), title, row, create("p", "tc-success-note", message), cont);
@@ -892,8 +934,8 @@ const scheduleRender = throttle(render, 60);
 function optionsLabel(options) {
 if (!options || typeof options !== "object") return "";
 return Object.keys(options).sort().map((key) => text("option", {
-  key,
-  value: options[key]
+key,
+value: options[key]
 })).join(", ");
 }
 
@@ -907,28 +949,28 @@ return safeHeaders;
 function hydrateCatalog() {
 if (!s.c.catalogUrl || !win.fetch) return;
 win.fetch(s.c.catalogUrl, {
-  headers: requestHeaders({ "Accept": "application/json" }),
-  credentials: "same-origin"
+headers: requestHeaders({ "Accept": "application/json" }),
+credentials: "same-origin"
 }).then((response) => response.ok ? response.json() : null).then((data) => {
-  const items = Array.isArray(data && data.items) ? data.items : [];
-  s.cat = {};
-  items.forEach((item) => {
-    const id = str(item && item.id, 120);
-    const cents = int(item && item.price_cents, 10);
-    if (!id || !Number.isFinite(cents)) return;
-    s.cat[id] = {
-      name: str(item.name, 180),
-      price_cents: cents,
-      stock: item.stock == null ? null : Math.max(0, int(item.stock, 10) || 0)
-    };
-  });
-  doc.querySelectorAll("[data-tc-id]").forEach((el) => {
-    const product = s.cat[el.getAttribute("data-tc-id")];
-    if (!product) return;
-    const soldOut = product.stock === 0;
-    el.disabled = soldOut;
-    el.setAttribute("aria-disabled", soldOut ? "true" : "false");
-  });
+const items = Array.isArray(data && data.items) ? data.items : [];
+s.cat = {};
+items.forEach((item) => {
+  const id = str(item && item.id, 120);
+  const cents = int(item && item.price_cents, 10);
+  if (!id || !Number.isFinite(cents)) return;
+  s.cat[id] = {
+    name: str(item.name, 180),
+    price_cents: cents,
+    stock: item.stock == null ? null : Math.max(0, int(item.stock, 10) || 0)
+  };
+});
+doc.querySelectorAll("[data-tc-id]").forEach((el) => {
+  const product = s.cat[el.getAttribute("data-tc-id")];
+  if (!product) return;
+  const soldOut = product.stock === 0;
+  el.disabled = soldOut;
+  el.setAttribute("aria-disabled", soldOut ? "true" : "false");
+});
 }).catch(() => {});
 }
 
@@ -938,10 +980,10 @@ return response.json().catch(() => ({}));
 
 function checkoutError(status, fallback) {
 const message = ({
-  400: text("checkout400"),
-  403: text("checkout403"),
-  409: text("outOfStock"),
-  429: text("checkout429")
+400: text("checkout400"),
+403: text("checkout403"),
+409: text("outOfStock"),
+429: text("checkout429")
 })[status] || (status >= 500 ? text("checkoutFailed") : fallback || text("checkoutFailed"));
 const error = new Error(message);
 error.tinycart = 1;
@@ -957,50 +999,50 @@ setText(submit, pending ? text("processing") : text("checkout"));
 async function applyCoupon(rawCode) {
 const code = str(rawCode, 40).toUpperCase();
 if (!code) {
-  s.cp = null;
-  setText(s.cs, text("couponRemoved"));
-  changed();
-  emit("cart:applyCoupon", { code: "", ok: true, removed: true });
-  return;
+s.cp = null;
+setText(s.cs, text("couponRemoved"));
+changed();
+emit("cart:applyCoupon", { code: "", ok: true, removed: true });
+return;
 }
 
 setText(s.cs, text("checkingCoupon"));
 let result = null;
 try {
-  if (typeof s.c.onValidateCoupon === "function") {
-    result = await s.c.onValidateCoupon(code, getCart());
-  } else if (s.c.apiCoupon) {
-    const response = await win.fetch(s.c.apiCoupon, {
-      method: "POST",
-      headers: requestHeaders({ "Content-Type": "application/json" }),
-      credentials: "same-origin",
-      body: JSON.stringify({ code, cart: getCart() })
-    });
-    result = await readJsonResponse(response);
-    if (!response.ok) {
-      result = { ok: false, message: result.error || result.message || text("couponInvalid") };
-    }
-  } else if (s.c.coupons && s.c.coupons[code]) {
-    const local = s.c.coupons[code];
-    result = typeof local === "number" ? { ok: true, type: "percent", value: local } : { ok: true, ...local };
+if (typeof s.c.onValidateCoupon === "function") {
+  result = await s.c.onValidateCoupon(code, getCart());
+} else if (s.c.apiCoupon) {
+  const response = await win.fetch(s.c.apiCoupon, {
+    method: "POST",
+    headers: requestHeaders({ "Content-Type": "application/json" }),
+    credentials: "same-origin",
+    body: JSON.stringify({ code, cart: getCart() })
+  });
+  result = await readJsonResponse(response);
+  if (!response.ok) {
+    result = { ok: false, message: result.error || result.message || text("couponInvalid") };
   }
+} else if (s.c.coupons && s.c.coupons[code]) {
+  const local = s.c.coupons[code];
+  result = typeof local === "number" ? { ok: true, type: "percent", value: local } : { ok: true, ...local };
+}
 } catch (_) {
-  result = { ok: false, message: text("couponFailed") };
+result = { ok: false, message: text("couponFailed") };
 }
 
 if (!result || result.ok === false) {
-  s.cp = null;
-  setText(s.cs, str(result && result.message ? result.message : text("couponInvalid"), 120));
-  changed();
-  emit("cart:applyCoupon", { code, ok: false });
-  return;
+s.cp = null;
+setText(s.cs, str(result && result.message ? result.message : text("couponInvalid"), 120));
+changed();
+emit("cart:applyCoupon", { code, ok: false });
+return;
 }
 
 s.cp = normalizeCoupon({
-  code,
-  type: result.type === "fixed" ? "fixed" : "percent",
-  value: Number(result.value || 0),
-  server: !!(s.c.apiCoupon || s.c.onValidateCoupon)
+code,
+type: result.type === "fixed" ? "fixed" : "percent",
+value: Number(result.value || 0),
+server: !!(s.c.apiCoupon || s.c.onValidateCoupon)
 });
 recalcCoupon();
 setText(s.cs, text("couponApplied", { code: s.cp.code }));
@@ -1011,10 +1053,10 @@ emit("cart:applyCoupon", { code, ok: true, coupon: s.cp });
 function formData() {
 const data = new FormData(s.form);
 return {
-  name: str(data.get("name"), 120),
-  phone: str(data.get("phone"), 40),
-  email: safeEmail(data.get("email")),
-  address: str(data.get("address"), 500)
+name: str(data.get("name"), 120),
+phone: str(data.get("phone"), 40),
+email: safeEmail(data.get("email")),
+address: str(data.get("address"), 500)
 };
 }
 
@@ -1029,65 +1071,58 @@ async function checkout(event) {
 event.preventDefault();
 if (s.pending) return;
 if (!s.i.length) {
-  toast(text("addItem"));
-  return;
+toast(text("addItem"));
+return;
 }
-if (!s.form.reportValidity()) {
-  toast(text("required"));
-  return;
-}
+if (!validateForm()) return;
 
 const customer = formData();
-if (!customer.name || !customer.phone || !customer.address) {
-  toast(text("required"));
-  return;
-}
 
 const submit = s.form.ownerDocument.querySelector('button[form="tc-checkout-form"]');
 s.pending = true;
 setSubmitPending(submit, true);
 const payload = {
-  cartKey: s.c.cartKey,
-  currency: s.c.currency,
-  customer,
-  cart: getCart(),
-  page: win.location.href,
-  createdAt: new Date().toISOString()
+cartKey: s.c.cartKey,
+currency: s.c.currency,
+customer,
+cart: getCart(),
+page: win.location.href,
+createdAt: new Date().toISOString()
 };
 const paymentMethod = selectedPaymentMethod();
 if (paymentMethod) payload.paymentMethod = paymentMethod;
 
 try {
-  let result;
-  if (typeof s.c.onCheckout === "function") {
-    result = await s.c.onCheckout(payload);
-    if (result && result.ok === false) throw checkoutError(0, result.error || result.message);
-  } else {
-    const response = await win.fetch(s.c.apiCheckout, {
-      method: "POST",
-      headers: requestHeaders({ "Content-Type": "application/json" }),
-      credentials: "same-origin",
-      body: JSON.stringify(payload)
-    });
-    result = await readJsonResponse(response);
-    if (!response.ok || !result.ok) throw checkoutError(response.status, result.error || result.message);
-  }
+let result;
+if (typeof s.c.onCheckout === "function") {
+  result = await s.c.onCheckout(payload);
+  if (result && result.ok === false) throw checkoutError(0, result.error || result.message);
+} else {
+  const response = await win.fetch(s.c.apiCheckout, {
+    method: "POST",
+    headers: requestHeaders({ "Content-Type": "application/json" }),
+    credentials: "same-origin",
+    body: JSON.stringify(payload)
+  });
+  result = await readJsonResponse(response);
+  if (!response.ok || !result.ok) throw checkoutError(response.status, result.error || result.message);
+}
 
-  const cart = getCart();
-  emit("cart:checkedout", { order: result, cart });
-  ping("checkout", { order_id: result && result.order_id, total: cart.totals.totalCents });
-  s.done = true;
-  clear();
-  showSuccess(result, paymentMethod, money(cart.totals.totalCents));
-  if (result && result.pay_url) win.location.assign(result.pay_url);
+const cart = getCart();
+emit("cart:checkedout", { order: result, cart });
+ping("checkout", { order_id: result && result.order_id, total: cart.totals.totalCents });
+s.done = true;
+clear();
+showSuccess(result, paymentMethod, money(cart.totals.totalCents));
+if (result && result.pay_url) win.location.assign(result.pay_url);
 } catch (err) {
-  const message = err && err.tinycart
-    ? err.message
-    : text("network");
-  toast(str(message, 120));
+const message = err && err.tinycart
+  ? err.message
+  : text("network");
+toast(str(message, 120));
 } finally {
-  s.pending = false;
-  setSubmitPending(submit, false);
+s.pending = false;
+setSubmitPending(submit, false);
 }
 }
 
@@ -1111,21 +1146,21 @@ restoreCartView();
 
 function trapKeys(event) {
 if (event.key === "Escape") {
-  closeCart();
-  return;
+closeCart();
+return;
 }
 if (event.key !== "Tab" || s.m.getAttribute("aria-hidden") === "true") return;
 const focusable = Array.from(s.m.querySelectorAll("button,input,textarea,[href],[tabindex]:not([tabindex='-1'])"))
-  .filter((el) => !el.disabled && el.offsetParent !== null);
+.filter((el) => !el.disabled && el.offsetParent !== null);
 if (!focusable.length) return;
 const first = focusable[0];
 const last = focusable[focusable.length - 1];
 if (event.shiftKey && doc.activeElement === first) {
-  event.preventDefault();
-  last.focus();
+event.preventDefault();
+last.focus();
 } else if (!event.shiftKey && doc.activeElement === last) {
-  event.preventDefault();
-  first.focus();
+event.preventDefault();
+first.focus();
 }
 }
 
@@ -1147,45 +1182,45 @@ s.float.classList.add("tc-pulse");
 function ping(type, payload = {}) {
 if (!s.c.analyticsUrl) return;
 const event = {
-  type,
-  cartKey: s.c.cartKey,
-  currency: s.c.currency,
-  payload,
-  ts: new Date().toISOString()
+type,
+cartKey: s.c.cartKey,
+currency: s.c.currency,
+payload,
+ts: new Date().toISOString()
 };
 sendPing(event, true).then((ok) => {
-  if (!ok) queuePing(event);
+if (!ok) queuePing(event);
 });
 }
 
 function sendPing(event, preferBeacon) {
 const body = JSON.stringify(event);
 try {
-  if (preferBeacon && !s.c.apiKey && navigator.sendBeacon) {
-    const blob = new Blob([body], { type: "application/json" });
-    if (navigator.sendBeacon(s.c.analyticsUrl, blob)) return Promise.resolve(true);
-  }
+if (preferBeacon && !s.c.apiKey && navigator.sendBeacon) {
+  const blob = new Blob([body], { type: "application/json" });
+  if (navigator.sendBeacon(s.c.analyticsUrl, blob)) return Promise.resolve(true);
+}
 } catch (_) {}
 try {
-  return win.fetch(s.c.analyticsUrl, {
-    method: "POST",
-    headers: requestHeaders({ "Content-Type": "application/json" }),
-    body,
-    keepalive: true,
-    credentials: "same-origin"
-  }).then((response) => response.ok).catch(() => false);
+return win.fetch(s.c.analyticsUrl, {
+  method: "POST",
+  headers: requestHeaders({ "Content-Type": "application/json" }),
+  body,
+  keepalive: true,
+  credentials: "same-origin"
+}).then((response) => response.ok).catch(() => false);
 } catch (_) {
-  return Promise.resolve(false);
+return Promise.resolve(false);
 }
 }
 
 function queuePing(event) {
 const queue = loadQueue();
 queue.push({
-  event,
-  tries: 0,
-  createdAt: now(),
-  nextAt: now() + s.c.retryBaseMs
+event,
+tries: 0,
+createdAt: now(),
+nextAt: now() + s.c.retryBaseMs
 });
 saveQueue(queue);
 scheduleFlushQueue();
@@ -1204,20 +1239,20 @@ if (!s.c.analyticsUrl) return;
 const queue = loadQueue();
 const index = queue.findIndex((entry) => !entry.nextAt || entry.nextAt <= now());
 if (index === -1) {
-  scheduleFlushQueue();
-  return;
+scheduleFlushQueue();
+return;
 }
 const entry = queue[index];
 sendPing(entry.event, false).then((ok) => {
-  const latest = loadQueue();
-  if (ok) {
-    latest.splice(index, 1);
-  } else if (latest[index]) {
-    latest[index].tries = (latest[index].tries || 0) + 1;
-    latest[index].nextAt = now() + Math.min(60 * 1000, s.c.retryBaseMs * (2 ** latest[index].tries));
-  }
-  saveQueue(latest);
-  scheduleFlushQueue();
+const latest = loadQueue();
+if (ok) {
+  latest.splice(index, 1);
+} else if (latest[index]) {
+  latest[index].tries = (latest[index].tries || 0) + 1;
+  latest[index].nextAt = now() + Math.min(60 * 1000, s.c.retryBaseMs * (2 ** latest[index].tries));
+}
+saveQueue(latest);
+scheduleFlushQueue();
 });
 }
 
@@ -1234,10 +1269,10 @@ if (!script) return {};
 const raw = script.getAttribute("data-tc-config");
 if (!raw) return {};
 try {
-  return JSON.parse(raw);
+return JSON.parse(raw);
 } catch (_) {
-  console.warn("TinyCart: invalid data-tc-config JSON.");
-  return {};
+console.warn("TinyCart: invalid data-tc-config JSON.");
+return {};
 }
 }
 
@@ -1260,14 +1295,14 @@ s.c.retryBaseMs = clamp(int(s.c.retryBaseMs, 10) || D.retryBaseMs, 500, 30 * 100
 
 loadCart();
 if (doc.body) {
-  buildUI();
-  bindProductListeners();
-  render();
-  hydrateCatalog();
-  scheduleFlushQueue();
-  s.initialized = true;
+buildUI();
+bindProductListeners();
+render();
+hydrateCatalog();
+scheduleFlushQueue();
+s.initialized = true;
 } else {
-  doc.addEventListener("DOMContentLoaded", () => init(config), { once: true });
+doc.addEventListener("DOMContentLoaded", () => init(config), { once: true });
 }
 return api;
 }
@@ -1285,12 +1320,12 @@ htmlEscape,
 safeTemplate,
 flushQueue,
 on(eventName, handler) {
-  if (typeof handler !== "function") return () => {};
-  s.h[eventName] = s.h[eventName] || [];
-  s.h[eventName].push(handler);
-  return () => {
-    s.h[eventName] = (s.h[eventName] || []).filter((candidate) => candidate !== handler);
-  };
+if (typeof handler !== "function") return () => {};
+s.h[eventName] = s.h[eventName] || [];
+s.h[eventName].push(handler);
+return () => {
+  s.h[eventName] = (s.h[eventName] || []).filter((candidate) => candidate !== handler);
+};
 }
 };
 
