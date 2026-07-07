@@ -87,8 +87,8 @@ for (const token of [
 for (const forbidden of ["innerHTML", "insertAdjacentHTML", "eval(", "new Function"]) {
   assert.ok(!js.includes(forbidden), `tinycart.js should not contain ${forbidden}`);
 }
-// Raised deliberately for opt-in catalogUrl hydration and i18n strings while keeping TinyCart small.
-assert.ok(js.length < 48_000, "tinycart.js should stay compact enough for the MVP");
+assert.ok(js.includes("// Public API: init, add, remove, update, getCart, clear, applyCoupon, htmlEscape, safeTemplate, flushQueue, on"), "tinycart.js should document the public API surface");
+assert.ok(js.length <= 45_000, "tinycart.js should stay at or below the B0 byte ceiling");
 
 const php = read("checkout.php");
 for (const token of [
@@ -258,7 +258,7 @@ assert.ok(ci.includes("node --test tests/*.test.mjs"), "CI should run the Node t
 assert.ok(ci.includes("node tests/static.test.mjs"), "CI should run static invariants");
 assert.ok(ci.includes("php -l"), "CI should lint PHP files");
 assert.ok(ci.includes("tinycart.js"), "CI should check the TinyCart byte size");
-assert.ok(ci.includes("48000"), "CI should preserve the documented byte-size ceiling");
+assert.ok(ci.includes("45000"), "CI should preserve the documented byte-size ceiling");
 
 const pagesWorkflow = read(".github/workflows/pages.yml");
 assert.ok(pagesWorkflow.includes("actions/configure-pages@v5"), "Pages workflow should configure GitHub Pages");
@@ -416,9 +416,9 @@ assert.ok(js.includes("--tc-bg:#fff"), "cart widget should default to light mode
 assert.ok(js.includes("@media (prefers-color-scheme:dark)"), "cart widget should include dark-mode token defaults");
 assert.ok(js.includes(".tc-dialog{position:fixed;inset:auto 12px 12px 12px"), "cart modal should use compact mobile spacing");
 assert.match(js, /\.tc-dialog\{[^}]*padding:0/, "cart modal should neutralize host section padding");
-assert.ok(js.includes(".tc-body{overflow:auto;scrollbar-color:var(--tc-fg,#111) var(--tc-soft,#f7f7f7);"), "cart modal should style its scrollbar");
+assert.ok(js.includes(".tc-body{overflow:auto;scrollbar-color:var(--f) var(--s);"), "cart modal should style its scrollbar");
 assert.ok(js.includes(".tc-form{display:grid;gap:8px;margin-top:8px;padding-top:10px"), "checkout form spacing should stay compact");
-assert.ok(js.length < 48_000, "cart widget should stay below the size ceiling after dark mode");
+assert.ok(js.length <= 45_000, "cart widget should stay below the size ceiling after dark mode");
 
 console.log("Static TinyCart checks passed.");
 

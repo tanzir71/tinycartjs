@@ -1,7 +1,7 @@
 (function (win, doc) {
   "use strict";
 
-  const DEFAULTS = {
+  const D = {
     cartKey: "default",
     currency: "USD",
     locale: null,
@@ -74,37 +74,38 @@
     option: "{{key}}: {{value}}"
   };
 
-  const state = {
-    config: { ...DEFAULTS },
-    items: [],
-    catalog: {},
-    coupon: null,
-    handlers: {},
+  const s = {
+    c: { ...D },
+    i: [],
+    cat: {},
+    cp: null,
+    h: {},
     initialized: false,
     root: null,
-    floating: null,
-    modal: null,
+    float: null,
+    m: null,
     list: null,
     count: null,
     total: null,
     modalTotal: null,
     discount: null,
-    toast: null,
+    note: null,
     form: null,
-    paymentMethodInputs: [],
-    couponInput: null,
-    couponStatus: null,
-    lastFocused: null,
-    checkoutPending: false,
-    retryTimer: 0
+    pay: [],
+    ci: null,
+    cs: null,
+    back: null,
+    pending: false,
+    rt: 0
   };
 
   const selectors = "[data-tc-id]";
-  const storageKey = () => `tinycart:${state.config.cartKey || "default"}`;
-  const queueKey = () => `tinycart:${state.config.cartKey || "default"}:queue`;
+  const storageKey = () => `tinycart:${s.c.cartKey || "default"}`;
+  const queueKey = () => `tinycart:${s.c.cartKey || "default"}:queue`;
   const CART_VERSION = 2;
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
   const now = () => Date.now();
+  const int = Number.parseInt;
 
   function htmlEscape(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, (char) => ({
@@ -129,16 +130,16 @@
   }
 
   function text(key, values) {
-    const value = state.config.strings && state.config.strings[key] != null ? state.config.strings[key] : STRINGS[key];
+    const value = s.c.strings && s.c.strings[key] != null ? s.c.strings[key] : STRINGS[key];
     return safeTemplate(value == null ? "" : value, values || {});
   }
 
-  function safeString(value, max = 180) {
+  function str(value, max = 180) {
     return String(value == null ? "" : value).replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max);
   }
 
   function safeEmail(value) {
-    const email = safeString(value, 254);
+    const email = str(value, 254);
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
   }
 
@@ -146,14 +147,14 @@
     const allowed = ["online", "cod", "manual"];
     const unique = [];
     (Array.isArray(methods) ? methods : []).forEach((method) => {
-      const clean = safeString(method, 20).toLowerCase();
+      const clean = str(method, 20).toLowerCase();
       if (allowed.includes(clean) && !unique.includes(clean)) unique.push(clean);
     });
     return unique;
   }
 
   function resolveDefaultPaymentMethod(methods, preferred) {
-    const clean = safeString(preferred, 20).toLowerCase();
+    const clean = str(preferred, 20).toLowerCase();
     return methods.includes(clean) ? clean : (methods[0] || "");
   }
 
@@ -177,12 +178,12 @@
 
   function money(cents) {
     try {
-      return new Intl.NumberFormat(state.config.locale || undefined, {
+      return new Intl.NumberFormat(s.c.locale || undefined, {
         style: "currency",
-        currency: state.config.currency || "USD"
+        currency: s.c.currency || "USD"
       }).format(centsToDecimal(cents));
     } catch (_) {
-      return `${state.config.currency || "USD"} ${centsToDecimal(cents).toFixed(2)}`;
+      return `${s.c.currency || "USD"} ${centsToDecimal(cents).toFixed(2)}`;
     }
   }
 
@@ -190,7 +191,7 @@
     const raw = color.replace("#", "");
     const hex = raw.length === 3 ? raw.replace(/./g, "$&$&") : raw.slice(0, 6);
     if (!/^[0-9a-f]{6}$/i.test(hex)) return "#111111";
-    const lum = [0, 2, 4].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255)
+    const lum = [0, 2, 4].map((i) => int(hex.slice(i, i + 2), 16) / 255)
       .map((c) => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
       .reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
     return 1.05 / (lum + 0.05) >= 4.5 ? color : "#111111";
@@ -203,7 +204,7 @@
   }
 
   function itemKey(item) {
-    return `${safeString(item.id, 120)}::${stableStringify(item.options || {})}`;
+    return `${str(item.id, 120)}::${stableStringify(item.options || {})}`;
   }
 
   function debounce(fn, wait) {
@@ -235,7 +236,7 @@
   }
 
   function emit(eventName, detail = {}) {
-    (state.handlers[eventName] || []).slice().forEach((handler) => {
+    (s.h[eventName] || []).slice().forEach((handler) => {
       try { handler(detail); } catch (err) { win.setTimeout(() => { throw err; }); }
     });
     try {
@@ -246,7 +247,7 @@
   function loadCart() {
     try {
       const raw = win.localStorage.getItem(storageKey());
-      if (!raw || raw.length > state.config.maxStorageBytes) return;
+      if (!raw || raw.length > s.c.maxStorageBytes) return;
       const saved = JSON.parse(raw);
       if (!saved || !Array.isArray(saved.items)) return;
       const version = saved.version == null ? 1 : Number(saved.version);
@@ -254,11 +255,11 @@
         win.localStorage.removeItem(storageKey());
         return;
       }
-      state.items = saved.items.map(normalizeItem).filter(Boolean).slice(0, state.config.maxItems);
-      state.coupon = normalizeCoupon(saved.coupon);
+      s.i = saved.items.map(normalizeItem).filter(Boolean).slice(0, s.c.maxItems);
+      s.cp = normalizeCoupon(saved.coupon);
     } catch (_) {
-      state.items = [];
-      state.coupon = null;
+      s.i = [];
+      s.cp = null;
     }
   }
 
@@ -266,10 +267,10 @@
     const payload = JSON.stringify({
       version: CART_VERSION,
       updatedAt: new Date().toISOString(),
-      coupon: state.coupon,
-      items: state.items.slice(0, state.config.maxItems)
+      coupon: s.cp,
+      items: s.i.slice(0, s.c.maxItems)
     });
-    if (payload.length > state.config.maxStorageBytes) {
+    if (payload.length > s.c.maxStorageBytes) {
       toast(text("cartTooLarge"));
       return false;
     }
@@ -285,22 +286,22 @@
   function loadQueue() {
     try {
       const raw = win.localStorage.getItem(queueKey());
-      if (!raw || raw.length > state.config.maxQueueBytes) return [];
+      if (!raw || raw.length > s.c.maxQueueBytes) return [];
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
-      const cutoff = now() - state.config.queueRetentionMs;
+      const cutoff = now() - s.c.queueRetentionMs;
       return parsed
         .filter((entry) => entry && entry.createdAt > cutoff)
-        .slice(0, state.config.maxQueueItems);
+        .slice(0, s.c.maxQueueItems);
     } catch (_) {
       return [];
     }
   }
 
   function saveQueue(queue) {
-    const compact = queue.slice(-state.config.maxQueueItems);
+    const compact = queue.slice(-s.c.maxQueueItems);
     const payload = JSON.stringify(compact);
-    if (payload.length > state.config.maxQueueBytes) {
+    if (payload.length > s.c.maxQueueBytes) {
       compact.splice(0, Math.ceil(compact.length / 2));
     }
     try {
@@ -310,7 +311,7 @@
 
   function normalizeCoupon(coupon) {
     if (!coupon || typeof coupon !== "object") return null;
-    const code = safeString(coupon.code, 40).toUpperCase();
+    const code = str(coupon.code, 40).toUpperCase();
     if (!code) return null;
     const type = coupon.type === "fixed" ? "fixed" : "percent";
     const value = Math.max(0, Number(coupon.value || 0));
@@ -320,15 +321,15 @@
 
   function normalizeItem(input) {
     if (!input || typeof input !== "object") return null;
-    const id = safeString(input.id || input.itemId, 120);
-    const name = safeString(input.name, 180);
+    const id = str(input.id || input.itemId, 120);
+    const name = str(input.name, 180);
     const cents = Number.isInteger(input.priceCents) ? input.priceCents : toCents(input.price);
-    const stock = input.stock === "" || input.stock == null ? null : Math.max(0, Number.parseInt(input.stock, 10));
-    const qty = clamp(Number.parseInt(input.qty || 1, 10) || 1, 1, stock || 999);
+    const stock = input.stock === "" || input.stock == null ? null : Math.max(0, int(input.stock, 10));
+    const qty = clamp(int(input.qty || 1, 10) || 1, 1, stock || 999);
     if (!id || !name || !Number.isFinite(cents) || cents < 0) return null;
     const options = sanitizeOptions(input.options);
-    const sig = safeString(input.sig || input.signature || "", 512);
-    const exp = safeString(input.exp || input.expires || "", 40);
+    const sig = str(input.sig || input.signature || "", 512);
+    const exp = str(input.exp || input.expires || "", 40);
     return {
       key: itemKey({ id, options }),
       id,
@@ -344,26 +345,26 @@
 
   function sanitizeOptions(input) {
     if (!input || typeof input !== "object" || Array.isArray(input)) return {};
-    const allowed = Array.isArray(state.config.allowedOptionKeys)
-      ? new Set(state.config.allowedOptionKeys.map((key) => safeString(key, 40)))
+    const allowed = Array.isArray(s.c.allowedOptionKeys)
+      ? new Set(s.c.allowedOptionKeys.map((key) => str(key, 40)))
       : null;
     const clean = {};
     Object.keys(input).slice(0, 20).forEach((key) => {
-      const safeKey = safeString(key, 40);
+      const safeKey = str(key, 40);
       if (!safeKey || safeKey.startsWith("__") || (allowed && !allowed.has(safeKey))) return;
       const value = input[key];
       if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-        clean[safeKey] = safeString(value, 120);
+        clean[safeKey] = str(value, 120);
       }
     });
     return clean;
   }
 
   function totals() {
-    const subtotal = state.items.reduce((sum, item) => sum + item.priceCents * item.qty, 0);
-    const discount = state.coupon ? clamp(Math.round(Number(state.coupon.amount || 0)), 0, subtotal) : 0;
+    const subtotal = s.i.reduce((sum, item) => sum + item.priceCents * item.qty, 0);
+    const discount = s.cp ? clamp(Math.round(Number(s.cp.amount || 0)), 0, subtotal) : 0;
     return {
-      count: state.items.reduce((sum, item) => sum + item.qty, 0),
+      count: s.i.reduce((sum, item) => sum + item.qty, 0),
       subtotal,
       discount,
       total: Math.max(0, subtotal - discount)
@@ -371,12 +372,12 @@
   }
 
   function recalcCoupon() {
-    if (!state.coupon) return;
-    const subtotal = state.items.reduce((sum, item) => sum + item.priceCents * item.qty, 0);
-    if (state.coupon.type === "fixed") {
-      state.coupon.amount = clamp(Math.round(Number(state.coupon.value) * 100), 0, subtotal);
+    if (!s.cp) return;
+    const subtotal = s.i.reduce((sum, item) => sum + item.priceCents * item.qty, 0);
+    if (s.cp.type === "fixed") {
+      s.cp.amount = clamp(Math.round(Number(s.cp.value) * 100), 0, subtotal);
     } else {
-      state.coupon.amount = clamp(Math.round(subtotal * (Number(state.coupon.value) / 100)), 0, subtotal);
+      s.cp.amount = clamp(Math.round(subtotal * (Number(s.cp.value) / 100)), 0, subtotal);
     }
   }
 
@@ -386,15 +387,15 @@
       toast(text("badProduct"));
       return false;
     }
-    const existing = state.items.find((candidate) => candidate.key === item.key);
+    const existing = s.i.find((candidate) => candidate.key === item.key);
     if (existing) {
       existing.qty = clamp(existing.qty + item.qty, 1, existing.stock || 999);
     } else {
-      if (state.items.length >= state.config.maxItems) {
+      if (s.i.length >= s.c.maxItems) {
         toast(text("itemLimit"));
         return false;
       }
-      state.items.push(item);
+      s.i.push(item);
     }
     changed();
     toast(text("itemAdded", { name: item.name }));
@@ -403,16 +404,16 @@
   }
 
   function remove(itemId) {
-    const before = state.items.length;
-    state.items = state.items.filter((item) => item.key !== itemId && item.id !== itemId);
-    if (state.items.length !== before) changed();
+    const before = s.i.length;
+    s.i = s.i.filter((item) => item.key !== itemId && item.id !== itemId);
+    if (s.i.length !== before) changed();
   }
 
   function update(itemId, patch = {}) {
-    const item = state.items.find((candidate) => candidate.key === itemId || candidate.id === itemId);
+    const item = s.i.find((candidate) => candidate.key === itemId || candidate.id === itemId);
     if (!item) return;
     if (patch.qty != null) {
-      const nextQty = Number.parseInt(patch.qty, 10);
+      const nextQty = int(patch.qty, 10);
       if (!Number.isFinite(nextQty) || nextQty <= 0) {
         remove(item.key);
         return;
@@ -423,8 +424,8 @@
   }
 
   function clear() {
-    state.items = [];
-    state.coupon = null;
+    s.i = [];
+    s.cp = null;
     changed();
   }
 
@@ -438,9 +439,9 @@
   function getCart() {
     const sum = totals();
     return {
-      cartKey: state.config.cartKey,
-      currency: state.config.currency,
-      items: state.items.map((item) => ({
+      cartKey: s.c.cartKey,
+      currency: s.c.currency,
+      items: s.i.map((item) => ({
         id: item.id,
         key: item.key,
         name: item.name,
@@ -452,7 +453,7 @@
         sig: item.sig,
         exp: item.exp
       })),
-      coupon: state.coupon,
+      coupon: s.cp,
       totals: {
         count: sum.count,
         subtotal: centsToDecimal(sum.subtotal),
@@ -478,7 +479,7 @@
 
   function itemFromElement(el) {
     const id = el.getAttribute("data-tc-id");
-    const product = state.catalog[id];
+    const product = s.cat[id];
     return {
       id,
       name: product ? product.name : el.getAttribute("data-tc-name"),
@@ -520,56 +521,56 @@
     const style = create("style");
     style.id = "tinycart-style";
     style.textContent = `
-.tc-root{--tc-bg:#fff;--tc-fg:#111;--tc-muted:#666;--tc-line:#ddd;--tc-soft:#f7f7f7;--tc-accent:#111;--tc-radius:10px;--tc-font:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light;font-family:var(--tc-font);color:var(--tc-fg,#111)}
+.tc-root{--tc-bg:#fff;--tc-fg:#111;--tc-muted:#666;--tc-line:#ddd;--tc-soft:#f7f7f7;--tc-accent:#111;--tc-radius:10px;--tc-font:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--b:var(--tc-bg);--f:var(--tc-fg);--m:var(--tc-muted);--l:var(--tc-line);--s:var(--tc-soft);--a:var(--tc-accent);--r:var(--tc-radius);--n:var(--tc-font);--bd:1px solid var(--l);--ba:1px solid var(--a);color-scheme:light;font-family:var(--n);color:var(--f)}
 .tc-root *{box-sizing:border-box}
-.tc-float{position:fixed;right:16px;bottom:16px;z-index:2147483000;display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;border:1px solid var(--tc-accent);border-radius:999px;background:var(--tc-accent);color:#fff;box-shadow:0 12px 28px rgba(0,0,0,.16);font:700 14px/1 var(--tc-font);cursor:pointer;touch-action:manipulation;transition:transform .18s ease,background .18s ease}
-.tc-float:hover,.tc-float:focus-visible{background:var(--tc-accent);outline:2px solid transparent;transform:translateY(-1px)}
+.tc-float{position:fixed;right:16px;bottom:16px;z-index:2147483000;display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;border:var(--ba);border-radius:999px;background:var(--a);color:#fff;box-shadow:0 12px 28px rgba(0,0,0,.16);font:700 14px/1 var(--n);cursor:pointer;touch-action:manipulation;transition:transform .18s ease,background .18s ease}
+.tc-float:hover,.tc-float:focus-visible{background:var(--a);outline:2px solid transparent;transform:translateY(-1px)}
 .tc-float.tc-pulse{animation:tc-pop .28s ease}
 .tc-count{display:grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#fff;color:#111;font-size:12px}
 .tc-backdrop{position:fixed;inset:0;z-index:2147483001;display:none;background:rgba(0,0,0,.28);padding:0}
 .tc-backdrop[aria-hidden=false]{display:block}
-.tc-dialog{position:fixed;inset:auto 12px 12px 12px;max-height:calc(100dvh - 24px);display:flex;flex-direction:column;padding:0;background:var(--tc-bg,#fff);border:1px solid var(--tc-line,#ddd);border-radius:var(--tc-radius);box-shadow:0 18px 60px rgba(0,0,0,.18);overflow:hidden}
-.tc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px 10px;border-bottom:1px solid var(--tc-line,#ddd)}
+.tc-dialog{position:fixed;inset:auto 12px 12px 12px;max-height:calc(100dvh - 24px);display:flex;flex-direction:column;padding:0;background:var(--b);border:var(--bd);border-radius:var(--r);box-shadow:0 18px 60px rgba(0,0,0,.18);overflow:hidden}
+.tc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px 10px;border-bottom:var(--bd)}
 .tc-title{margin:0;font-size:16px;line-height:1.2;font-weight:800;letter-spacing:0}
-.tc-iconbtn{display:grid;place-items:center;width:38px;height:38px;border:1px solid var(--tc-line,#ddd);border-radius:999px;background:var(--tc-bg,#fff);color:var(--tc-fg,#111);cursor:pointer}
-.tc-iconbtn:hover,.tc-iconbtn:focus-visible{border-color:var(--tc-fg,#111);outline:2px solid var(--tc-accent);outline-offset:2px}
-.tc-body{overflow:auto;scrollbar-color:var(--tc-fg,#111) var(--tc-soft,#f7f7f7);scrollbar-width:thin;padding:8px 16px 12px;overscroll-behavior:contain}
+.tc-iconbtn{display:grid;place-items:center;width:38px;height:38px;border:var(--bd);border-radius:999px;background:var(--b);color:var(--f);cursor:pointer}
+.tc-iconbtn:hover,.tc-iconbtn:focus-visible{border-color:var(--f);outline:2px solid var(--a);outline-offset:2px}
+.tc-body{overflow:auto;scrollbar-color:var(--f) var(--s);scrollbar-width:thin;padding:8px 16px 12px;overscroll-behavior:contain}
 .tc-body::-webkit-scrollbar{width:10px}
-.tc-body::-webkit-scrollbar-track{background:var(--tc-soft,#f7f7f7)}
-.tc-body::-webkit-scrollbar-thumb{background:var(--tc-fg,#111);border:2px solid var(--tc-soft,#f7f7f7)}
-.tc-empty{padding:28px 0;color:var(--tc-muted,#666);text-align:center;font-size:14px}
-.tc-item{display:grid;grid-template-columns:1fr auto;gap:10px;padding:12px 0;border-bottom:1px solid var(--tc-line,#ddd)}
+.tc-body::-webkit-scrollbar-track{background:var(--s)}
+.tc-body::-webkit-scrollbar-thumb{background:var(--f);border:2px solid var(--s)}
+.tc-empty{padding:28px 0;color:var(--m);text-align:center;font-size:14px}
+.tc-item{display:grid;grid-template-columns:1fr auto;gap:10px;padding:12px 0;border-bottom:var(--bd)}
 .tc-name{font-weight:750;font-size:14px;line-height:1.25}
-.tc-options{margin-top:5px;color:var(--tc-muted,#666);font-size:12px;line-height:1.35;word-break:break-word}
+.tc-options{margin-top:5px;color:var(--m);font-size:12px;line-height:1.35;word-break:break-word}
 .tc-price{margin-top:7px;font-weight:700;font-size:13px}
 .tc-row-actions{display:flex;align-items:center;gap:8px;margin-top:10px}
-.tc-qty{display:flex;align-items:center;border:1px solid var(--tc-line,#ddd);border-radius:999px;overflow:hidden}
-.tc-qty button{width:34px;height:34px;border:0;background:var(--tc-bg,#fff);color:var(--tc-fg,#111);font-size:18px;line-height:1;cursor:pointer}
-.tc-qty input{width:44px;height:34px;border:0;border-inline:1px solid var(--tc-line,#ddd);text-align:center;font:700 14px/1 var(--tc-font)}
-.tc-qty button:hover,.tc-remove:hover{background:var(--tc-soft,#f7f7f7)}
-.tc-qty button:focus-visible,.tc-remove:focus-visible{outline:2px solid var(--tc-accent);outline-offset:2px}
-.tc-remove{height:34px;border:1px solid var(--tc-line,#ddd);border-radius:999px;background:var(--tc-bg,#fff);padding:0 11px;cursor:pointer;color:var(--tc-fg,#111);font-weight:650;font-size:13px}
-.tc-line{display:flex;justify-content:space-between;gap:16px;padding:4px 0;color:var(--tc-muted,#666);font-size:13px}
-.tc-line strong{color:var(--tc-fg,#111)}
+.tc-qty{display:flex;align-items:center;border:var(--bd);border-radius:999px;overflow:hidden}
+.tc-qty button{width:34px;height:34px;border:0;background:var(--b);color:var(--f);font-size:18px;line-height:1;cursor:pointer}
+.tc-qty input{width:44px;height:34px;border:0;border-inline:var(--bd);text-align:center;font:700 14px/1 var(--n)}
+.tc-qty button:hover,.tc-remove:hover{background:var(--s)}
+.tc-qty button:focus-visible,.tc-remove:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+.tc-remove{height:34px;border:var(--bd);border-radius:999px;background:var(--b);padding:0 11px;cursor:pointer;color:var(--f);font-weight:650;font-size:13px}
+.tc-line{display:flex;justify-content:space-between;gap:16px;padding:4px 0;color:var(--m);font-size:13px}
+.tc-line strong{color:var(--f)}
 .tc-coupon{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
-.tc-input,.tc-field input,.tc-field textarea{width:100%;min-height:42px;border:1px solid var(--tc-line,#ddd);border-radius:calc(var(--tc-radius)*.8);background:var(--tc-bg,#fff);color:var(--tc-fg,#111);padding:9px 11px;font:500 14px/1.3 var(--tc-font)}
+.tc-input,.tc-field input,.tc-field textarea{width:100%;min-height:42px;border:var(--bd);border-radius:calc(var(--r)*.8);background:var(--b);color:var(--f);padding:9px 11px;font:500 14px/1.3 var(--n)}
 .tc-field textarea{min-height:64px;resize:vertical}
-.tc-input:focus,.tc-field input:focus,.tc-field textarea:focus{outline:2px solid var(--tc-accent);outline-offset:1px}
-.tc-btn{min-height:42px;border:1px solid var(--tc-accent);border-radius:999px;background:var(--tc-accent);color:#fff;padding:0 15px;font:800 13px/1 var(--tc-font);cursor:pointer}
-.tc-btn:hover,.tc-btn:focus-visible{background:var(--tc-accent);outline:2px solid transparent}
+.tc-input:focus,.tc-field input:focus,.tc-field textarea:focus{outline:2px solid var(--a);outline-offset:1px}
+.tc-btn{min-height:42px;border:var(--ba);border-radius:999px;background:var(--a);color:#fff;padding:0 15px;font:800 13px/1 var(--n);cursor:pointer}
+.tc-btn:hover,.tc-btn:focus-visible{background:var(--a);outline:2px solid transparent}
 .tc-btn[disabled]{opacity:.55;cursor:not-allowed}
-.tc-coupon-status{min-height:16px;margin:6px 0 0;color:var(--tc-muted,#666);font-size:12px}
-.tc-form{display:grid;gap:8px;margin-top:8px;padding-top:10px;border-top:1px solid var(--tc-line,#ddd)}
-.tc-field span{display:block;margin:0 0 6px;font-size:12px;font-weight:750;color:var(--tc-muted,#333)}
+.tc-coupon-status{min-height:16px;margin:6px 0 0;color:var(--m);font-size:12px}
+.tc-form{display:grid;gap:8px;margin-top:8px;padding-top:10px;border-top:var(--bd)}
+.tc-field span{display:block;margin:0 0 6px;font-size:12px;font-weight:750;color:var(--m)}
 .tc-payment{display:grid;gap:6px;padding-bottom:2px}
-.tc-payment>span{font-size:12px;font-weight:750;color:var(--tc-muted,#333)}
-.tc-payment label{display:flex;align-items:center;gap:8px;min-height:34px;border:1px solid var(--tc-line,#ddd);border-radius:999px;padding:0 10px;font-size:13px;font-weight:650}
-.tc-payment input{width:14px;height:14px;margin:0;accent-color:var(--tc-accent)}
-.tc-foot{padding:10px 16px 12px;border-top:1px solid var(--tc-line,#ddd);background:var(--tc-bg,#fff)}
-.tc-toast{position:fixed;left:16px;right:16px;bottom:76px;z-index:2147483002;display:none;padding:12px 14px;border:1px solid var(--tc-accent);border-radius:calc(var(--tc-radius)*1.1);background:var(--tc-accent);color:#fff;text-align:center;font:700 13px/1.35 var(--tc-font);box-shadow:0 14px 42px rgba(0,0,0,.2)}
+.tc-payment>span{font-size:12px;font-weight:750;color:var(--m)}
+.tc-payment label{display:flex;align-items:center;gap:8px;min-height:34px;border:var(--bd);border-radius:999px;padding:0 10px;font-size:13px;font-weight:650}
+.tc-payment input{width:14px;height:14px;margin:0;accent-color:var(--a)}
+.tc-foot{padding:10px 16px 12px;border-top:var(--bd);background:var(--b)}
+.tc-toast{position:fixed;left:16px;right:16px;bottom:76px;z-index:2147483002;display:none;padding:12px 14px;border:var(--ba);border-radius:calc(var(--r)*1.1);background:var(--a);color:#fff;text-align:center;font:700 13px/1.35 var(--n);box-shadow:0 14px 42px rgba(0,0,0,.2)}
 .tc-toast[aria-hidden=false]{display:block;animation:tc-slide .2s ease}
 .tc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
-@media (min-width:720px){.tc-float{right:24px;bottom:24px}.tc-dialog{inset:24px 24px 24px auto;width:min(420px,calc(100vw - 48px));max-height:calc(100dvh - 48px);border-radius:var(--tc-radius)}.tc-toast{left:auto;right:24px;bottom:88px;width:320px}.tc-body{padding-inline:18px}.tc-head,.tc-foot{padding-inline:18px}}
+@media (min-width:720px){.tc-float{right:24px;bottom:24px}.tc-dialog{inset:24px 24px 24px auto;width:min(420px,calc(100vw - 48px));max-height:calc(100dvh - 48px);border-radius:var(--r)}.tc-toast{left:auto;right:24px;bottom:88px;width:320px}.tc-body{padding-inline:18px}.tc-head,.tc-foot{padding-inline:18px}}
 @media (prefers-color-scheme:dark){.tc-root:not([style*="--tc-bg"]){--tc-bg:#111;--tc-fg:#f5f5f5;--tc-muted:#bbb;--tc-line:#333;--tc-soft:#1b1b1b;color-scheme:dark}}
 @media (prefers-reduced-motion:reduce){.tc-float,.tc-toast{transition:none;animation:none!important}}
 @keyframes tc-pop{50%{transform:scale(1.04)}}
@@ -580,10 +581,10 @@
 
   function buildUI() {
     injectStyles();
-    if (state.root) state.root.remove();
+    if (s.root) s.root.remove();
 
     const root = create("div", "tc-root");
-    if (state.config.accent) root.style.setProperty("--tc-accent", state.config.accent);
+    if (s.c.accent) root.style.setProperty("--tc-accent", s.c.accent);
 
     const float = create("button", "tc-float");
     float.type = "button";
@@ -669,23 +670,23 @@
     root.append(float, backdrop, toastEl);
     doc.body.append(root);
 
-    state.root = root;
-    state.floating = float;
-    state.modal = backdrop;
-    state.list = list;
-    state.count = count;
-    state.total = subtotalLine.querySelector(".tc-total");
-    state.discount = discountLine.querySelector(".tc-discount");
-    state.modalTotal = totalLine.querySelector(".tc-modal-total");
-    state.toast = toastEl;
-    state.form = form;
-    state.couponInput = couponInput;
-    state.couponStatus = couponStatus;
+    s.root = root;
+    s.float = float;
+    s.m = backdrop;
+    s.list = list;
+    s.count = count;
+    s.total = subtotalLine.querySelector(".tc-total");
+    s.discount = discountLine.querySelector(".tc-discount");
+    s.mTotal = totalLine.querySelector(".tc-modal-total");
+    s.note = toastEl;
+    s.form = form;
+    s.ci = couponInput;
+    s.cs = couponStatus;
   }
 
   function paymentControls() {
-    state.paymentMethodInputs = [];
-    const methods = state.config.paymentMethods || [];
+    s.pay = [];
+    const methods = s.c.paymentMethods || [];
     if (methods.length < 2) return null;
     const wrap = create("div", "tc-payment");
     wrap.setAttribute("role", "radiogroup");
@@ -697,11 +698,11 @@
       input.type = "radio";
       input.name = "paymentMethod";
       input.value = method;
-      input.checked = method === state.config.defaultPaymentMethod;
+      input.checked = method === s.c.defaultPaymentMethod;
       label.append(input, create("span", "", paymentLabel(method)));
       if (label.textContent === "") label.textContent = paymentLabel(method);
       wrap.append(label);
-      state.paymentMethodInputs.push(input);
+      s.pay.push(input);
     });
     return wrap;
   }
@@ -725,23 +726,23 @@
   }
 
   function render() {
-    if (!state.root) return;
+    if (!s.root) return;
     const sum = totals();
-    setText(state.count, sum.count);
-    setText(state.total, money(sum.subtotal));
-    setText(state.discount, `-${money(sum.discount)}`);
-    setText(state.modalTotal, money(sum.total));
-    if (state.couponInput && state.coupon && state.couponInput.value.toUpperCase() !== state.coupon.code) {
-      state.couponInput.value = state.coupon.code;
+    setText(s.count, sum.count);
+    setText(s.total, money(sum.subtotal));
+    setText(s.discount, `-${money(sum.discount)}`);
+    setText(s.mTotal, money(sum.total));
+    if (s.ci && s.cp && s.ci.value.toUpperCase() !== s.cp.code) {
+      s.ci.value = s.cp.code;
     }
 
-    state.list.replaceChildren();
-    if (!state.items.length) {
-      state.list.append(create("div", "tc-empty", text("empty")));
+    s.list.replaceChildren();
+    if (!s.i.length) {
+      s.list.append(create("div", "tc-empty", text("empty")));
       return;
     }
 
-    state.items.forEach((item) => {
+    s.i.forEach((item) => {
       const row = create("article", "tc-item");
       const main = create("div");
       main.append(create("div", "tc-name", item.name));
@@ -778,7 +779,7 @@
 
       const lineTotal = create("strong", "", money(item.priceCents * item.qty));
       row.append(main, lineTotal);
-      state.list.append(row);
+      s.list.append(row);
     });
   }
 
@@ -794,31 +795,31 @@
 
   function requestHeaders(headers = {}) {
     const safeHeaders = { ...headers };
-    const apiKey = safeString(state.config.apiKey || "", 300);
+    const apiKey = str(s.c.apiKey || "", 300);
     if (apiKey) safeHeaders["X-API-KEY"] = apiKey;
     return safeHeaders;
   }
 
   function hydrateCatalog() {
-    if (!state.config.catalogUrl || !win.fetch) return;
-    win.fetch(state.config.catalogUrl, {
+    if (!s.c.catalogUrl || !win.fetch) return;
+    win.fetch(s.c.catalogUrl, {
       headers: requestHeaders({ "Accept": "application/json" }),
       credentials: "same-origin"
     }).then((response) => response.ok ? response.json() : null).then((data) => {
       const items = Array.isArray(data && data.items) ? data.items : [];
-      state.catalog = {};
+      s.cat = {};
       items.forEach((item) => {
-        const id = safeString(item && item.id, 120);
-        const cents = Number.parseInt(item && item.price_cents, 10);
+        const id = str(item && item.id, 120);
+        const cents = int(item && item.price_cents, 10);
         if (!id || !Number.isFinite(cents)) return;
-        state.catalog[id] = {
-          name: safeString(item.name, 180),
+        s.cat[id] = {
+          name: str(item.name, 180),
           price_cents: cents,
-          stock: item.stock == null ? null : Math.max(0, Number.parseInt(item.stock, 10) || 0)
+          stock: item.stock == null ? null : Math.max(0, int(item.stock, 10) || 0)
         };
       });
       doc.querySelectorAll("[data-tc-id]").forEach((el) => {
-        const product = state.catalog[el.getAttribute("data-tc-id")];
+        const product = s.cat[el.getAttribute("data-tc-id")];
         if (!product) return;
         const soldOut = product.stock === 0;
         el.disabled = soldOut;
@@ -850,22 +851,22 @@
   }
 
   async function applyCoupon(rawCode) {
-    const code = safeString(rawCode, 40).toUpperCase();
+    const code = str(rawCode, 40).toUpperCase();
     if (!code) {
-      state.coupon = null;
-      setText(state.couponStatus, text("couponRemoved"));
+      s.cp = null;
+      setText(s.cs, text("couponRemoved"));
       changed();
       emit("cart:applyCoupon", { code: "", ok: true, removed: true });
       return;
     }
 
-    setText(state.couponStatus, text("checkingCoupon"));
+    setText(s.cs, text("checkingCoupon"));
     let result = null;
     try {
-      if (typeof state.config.onValidateCoupon === "function") {
-        result = await state.config.onValidateCoupon(code, getCart());
-      } else if (state.config.apiCoupon) {
-        const response = await win.fetch(state.config.apiCoupon, {
+      if (typeof s.c.onValidateCoupon === "function") {
+        result = await s.c.onValidateCoupon(code, getCart());
+      } else if (s.c.apiCoupon) {
+        const response = await win.fetch(s.c.apiCoupon, {
           method: "POST",
           headers: requestHeaders({ "Content-Type": "application/json" }),
           credentials: "same-origin",
@@ -875,8 +876,8 @@
         if (!response.ok) {
           result = { ok: false, message: result.error || result.message || text("couponInvalid") };
         }
-      } else if (state.config.coupons && state.config.coupons[code]) {
-        const local = state.config.coupons[code];
+      } else if (s.c.coupons && s.c.coupons[code]) {
+        const local = s.c.coupons[code];
         result = typeof local === "number" ? { ok: true, type: "percent", value: local } : { ok: true, ...local };
       }
     } catch (_) {
@@ -884,50 +885,50 @@
     }
 
     if (!result || result.ok === false) {
-      state.coupon = null;
-      setText(state.couponStatus, safeString(result && result.message ? result.message : text("couponInvalid"), 120));
+      s.cp = null;
+      setText(s.cs, str(result && result.message ? result.message : text("couponInvalid"), 120));
       changed();
       emit("cart:applyCoupon", { code, ok: false });
       return;
     }
 
-    state.coupon = normalizeCoupon({
+    s.cp = normalizeCoupon({
       code,
       type: result.type === "fixed" ? "fixed" : "percent",
       value: Number(result.value || 0),
-      server: !!(state.config.apiCoupon || state.config.onValidateCoupon)
+      server: !!(s.c.apiCoupon || s.c.onValidateCoupon)
     });
     recalcCoupon();
-    setText(state.couponStatus, text("couponApplied", { code: state.coupon.code }));
+    setText(s.cs, text("couponApplied", { code: s.cp.code }));
     changed();
-    emit("cart:applyCoupon", { code, ok: true, coupon: state.coupon });
+    emit("cart:applyCoupon", { code, ok: true, coupon: s.cp });
   }
 
   function formData() {
-    const data = new FormData(state.form);
+    const data = new FormData(s.form);
     return {
-      name: safeString(data.get("name"), 120),
-      phone: safeString(data.get("phone"), 40),
+      name: str(data.get("name"), 120),
+      phone: str(data.get("phone"), 40),
       email: safeEmail(data.get("email")),
-      address: safeString(data.get("address"), 500)
+      address: str(data.get("address"), 500)
     };
   }
 
   function selectedPaymentMethod() {
-    const methods = state.config.paymentMethods || [];
+    const methods = s.c.paymentMethods || [];
     if (!methods.length) return "";
-    const checked = (state.paymentMethodInputs || []).find((input) => input.checked);
-    return checked ? checked.value : state.config.defaultPaymentMethod;
+    const checked = (s.pay || []).find((input) => input.checked);
+    return checked ? checked.value : s.c.defaultPaymentMethod;
   }
 
   async function checkout(event) {
     event.preventDefault();
-    if (state.checkoutPending) return;
-    if (!state.items.length) {
+    if (s.pending) return;
+    if (!s.i.length) {
       toast(text("addItem"));
       return;
     }
-    if (!state.form.reportValidity()) {
+    if (!s.form.reportValidity()) {
       toast(text("required"));
       return;
     }
@@ -938,12 +939,12 @@
       return;
     }
 
-    const submit = state.form.ownerDocument.querySelector('button[form="tc-checkout-form"]');
-    state.checkoutPending = true;
+    const submit = s.form.ownerDocument.querySelector('button[form="tc-checkout-form"]');
+    s.pending = true;
     setSubmitPending(submit, true);
     const payload = {
-      cartKey: state.config.cartKey,
-      currency: state.config.currency,
+      cartKey: s.c.cartKey,
+      currency: s.c.currency,
       customer,
       cart: getCart(),
       page: win.location.href,
@@ -954,11 +955,11 @@
 
     try {
       let result;
-      if (typeof state.config.onCheckout === "function") {
-        result = await state.config.onCheckout(payload);
+      if (typeof s.c.onCheckout === "function") {
+        result = await s.c.onCheckout(payload);
         if (result && result.ok === false) throw checkoutError(0, result.error || result.message);
       } else {
-        const response = await win.fetch(state.config.apiCheckout, {
+        const response = await win.fetch(s.c.apiCheckout, {
           method: "POST",
           headers: requestHeaders({ "Content-Type": "application/json" }),
           credentials: "same-origin",
@@ -978,28 +979,28 @@
       const message = err && err.tinycart
         ? err.message
         : text("network");
-      toast(safeString(message, 120));
+      toast(str(message, 120));
     } finally {
-      state.checkoutPending = false;
+      s.pending = false;
       setSubmitPending(submit, false);
     }
   }
 
   function openCart() {
-    if (!state.modal) return;
-    state.lastFocused = doc.activeElement;
-    state.modal.setAttribute("aria-hidden", "false");
+    if (!s.m) return;
+    s.back = doc.activeElement;
+    s.m.setAttribute("aria-hidden", "false");
     doc.addEventListener("keydown", trapKeys, true);
-    const first = state.modal.querySelector("button,input,textarea,[tabindex]:not([tabindex='-1'])");
+    const first = s.m.querySelector("button,input,textarea,[tabindex]:not([tabindex='-1'])");
     if (first) first.focus();
     emit("cart:opened", getCart());
   }
 
   function closeCart() {
-    if (!state.modal) return;
-    state.modal.setAttribute("aria-hidden", "true");
+    if (!s.m) return;
+    s.m.setAttribute("aria-hidden", "true");
     doc.removeEventListener("keydown", trapKeys, true);
-    if (state.lastFocused && state.lastFocused.focus) state.lastFocused.focus();
+    if (s.back && s.back.focus) s.back.focus();
   }
 
   function trapKeys(event) {
@@ -1007,8 +1008,8 @@
       closeCart();
       return;
     }
-    if (event.key !== "Tab" || state.modal.getAttribute("aria-hidden") === "true") return;
-    const focusable = Array.from(state.modal.querySelectorAll("button,input,textarea,[href],[tabindex]:not([tabindex='-1'])"))
+    if (event.key !== "Tab" || s.m.getAttribute("aria-hidden") === "true") return;
+    const focusable = Array.from(s.m.querySelectorAll("button,input,textarea,[href],[tabindex]:not([tabindex='-1'])"))
       .filter((el) => !el.disabled && el.offsetParent !== null);
     if (!focusable.length) return;
     const first = focusable[0];
@@ -1023,26 +1024,26 @@
   }
 
   function toast(message) {
-    if (!state.toast) return;
-    setText(state.toast, message);
-    state.toast.setAttribute("aria-hidden", "false");
-    win.clearTimeout(state.toast._timer);
-    state.toast._timer = win.setTimeout(() => state.toast.setAttribute("aria-hidden", "true"), 2400);
+    if (!s.note) return;
+    setText(s.note, message);
+    s.note.setAttribute("aria-hidden", "false");
+    win.clearTimeout(s.note._timer);
+    s.note._timer = win.setTimeout(() => s.note.setAttribute("aria-hidden", "true"), 2400);
   }
 
   function pulseCart() {
-    if (!state.floating) return;
-    state.floating.classList.remove("tc-pulse");
-    void state.floating.offsetWidth;
-    state.floating.classList.add("tc-pulse");
+    if (!s.float) return;
+    s.float.classList.remove("tc-pulse");
+    void s.float.offsetWidth;
+    s.float.classList.add("tc-pulse");
   }
 
   function ping(type, payload = {}) {
-    if (!state.config.analyticsUrl) return;
+    if (!s.c.analyticsUrl) return;
     const event = {
       type,
-      cartKey: state.config.cartKey,
-      currency: state.config.currency,
+      cartKey: s.c.cartKey,
+      currency: s.c.currency,
       payload,
       ts: new Date().toISOString()
     };
@@ -1054,13 +1055,13 @@
   function sendPing(event, preferBeacon) {
     const body = JSON.stringify(event);
     try {
-      if (preferBeacon && !state.config.apiKey && navigator.sendBeacon) {
+      if (preferBeacon && !s.c.apiKey && navigator.sendBeacon) {
         const blob = new Blob([body], { type: "application/json" });
-        if (navigator.sendBeacon(state.config.analyticsUrl, blob)) return Promise.resolve(true);
+        if (navigator.sendBeacon(s.c.analyticsUrl, blob)) return Promise.resolve(true);
       }
     } catch (_) {}
     try {
-      return win.fetch(state.config.analyticsUrl, {
+      return win.fetch(s.c.analyticsUrl, {
         method: "POST",
         headers: requestHeaders({ "Content-Type": "application/json" }),
         body,
@@ -1078,22 +1079,22 @@
       event,
       tries: 0,
       createdAt: now(),
-      nextAt: now() + state.config.retryBaseMs
+      nextAt: now() + s.c.retryBaseMs
     });
     saveQueue(queue);
     scheduleFlushQueue();
   }
 
   function scheduleFlushQueue() {
-    win.clearTimeout(state.retryTimer);
+    win.clearTimeout(s.rt);
     const queue = loadQueue();
     if (!queue.length) return;
     const dueIn = Math.max(250, Math.min(...queue.map((entry) => entry.nextAt || now())) - now());
-    state.retryTimer = win.setTimeout(flushQueue, dueIn);
+    s.rt = win.setTimeout(flushQueue, dueIn);
   }
 
   function flushQueue() {
-    if (!state.config.analyticsUrl) return;
+    if (!s.c.analyticsUrl) return;
     const queue = loadQueue();
     const index = queue.findIndex((entry) => !entry.nextAt || entry.nextAt <= now());
     if (index === -1) {
@@ -1107,7 +1108,7 @@
         latest.splice(index, 1);
       } else if (latest[index]) {
         latest[index].tries = (latest[index].tries || 0) + 1;
-        latest[index].nextAt = now() + Math.min(60 * 1000, state.config.retryBaseMs * (2 ** latest[index].tries));
+        latest[index].nextAt = now() + Math.min(60 * 1000, s.c.retryBaseMs * (2 ** latest[index].tries));
       }
       saveQueue(latest);
       scheduleFlushQueue();
@@ -1135,21 +1136,21 @@
   }
 
   function init(config = {}) {
-    state.config = { ...DEFAULTS, ...readScriptConfig(), ...config };
-    state.config.cartKey = safeString(state.config.cartKey || "default", 80);
-    state.config.currency = safeString(state.config.currency || "USD", 8).toUpperCase();
-    state.config.locale = safeString(state.config.locale || "", 40);
-    state.config.accent = state.config.accent && /^#[0-9a-f]{3,8}$/i.test(state.config.accent) ? readableAccent(state.config.accent) : "";
-    state.config.apiKey = safeString(state.config.apiKey || "", 300);
-    state.config.catalogUrl = safeString(state.config.catalogUrl || "", 500);
-    state.config.paymentMethods = normalizePaymentMethods(state.config.paymentMethods);
-    state.config.defaultPaymentMethod = resolveDefaultPaymentMethod(state.config.paymentMethods, state.config.defaultPaymentMethod);
-    state.config.maxItems = clamp(Number.parseInt(state.config.maxItems, 10) || DEFAULTS.maxItems, 1, 250);
-    state.config.maxStorageBytes = clamp(Number.parseInt(state.config.maxStorageBytes, 10) || DEFAULTS.maxStorageBytes, 4096, 200 * 1024);
-    state.config.maxQueueItems = clamp(Number.parseInt(state.config.maxQueueItems, 10) || DEFAULTS.maxQueueItems, 1, 50);
-    state.config.maxQueueBytes = clamp(Number.parseInt(state.config.maxQueueBytes, 10) || DEFAULTS.maxQueueBytes, 2048, 80 * 1024);
-    state.config.queueRetentionMs = clamp(Number.parseInt(state.config.queueRetentionMs, 10) || DEFAULTS.queueRetentionMs, 60 * 1000, 7 * 24 * 60 * 60 * 1000);
-    state.config.retryBaseMs = clamp(Number.parseInt(state.config.retryBaseMs, 10) || DEFAULTS.retryBaseMs, 500, 30 * 1000);
+    s.c = { ...D, ...readScriptConfig(), ...config };
+    s.c.cartKey = str(s.c.cartKey || "default", 80);
+    s.c.currency = str(s.c.currency || "USD", 8).toUpperCase();
+    s.c.locale = str(s.c.locale || "", 40);
+    s.c.accent = s.c.accent && /^#[0-9a-f]{3,8}$/i.test(s.c.accent) ? readableAccent(s.c.accent) : "";
+    s.c.apiKey = str(s.c.apiKey || "", 300);
+    s.c.catalogUrl = str(s.c.catalogUrl || "", 500);
+    s.c.paymentMethods = normalizePaymentMethods(s.c.paymentMethods);
+    s.c.defaultPaymentMethod = resolveDefaultPaymentMethod(s.c.paymentMethods, s.c.defaultPaymentMethod);
+    s.c.maxItems = clamp(int(s.c.maxItems, 10) || D.maxItems, 1, 250);
+    s.c.maxStorageBytes = clamp(int(s.c.maxStorageBytes, 10) || D.maxStorageBytes, 4096, 200 * 1024);
+    s.c.maxQueueItems = clamp(int(s.c.maxQueueItems, 10) || D.maxQueueItems, 1, 50);
+    s.c.maxQueueBytes = clamp(int(s.c.maxQueueBytes, 10) || D.maxQueueBytes, 2048, 80 * 1024);
+    s.c.queueRetentionMs = clamp(int(s.c.queueRetentionMs, 10) || D.queueRetentionMs, 60 * 1000, 7 * 24 * 60 * 60 * 1000);
+    s.c.retryBaseMs = clamp(int(s.c.retryBaseMs, 10) || D.retryBaseMs, 500, 30 * 1000);
 
     loadCart();
     if (doc.body) {
@@ -1158,13 +1159,14 @@
       render();
       hydrateCatalog();
       scheduleFlushQueue();
-      state.initialized = true;
+      s.initialized = true;
     } else {
       doc.addEventListener("DOMContentLoaded", () => init(config), { once: true });
     }
     return api;
   }
 
+  // Public API: init, add, remove, update, getCart, clear, applyCoupon, htmlEscape, safeTemplate, flushQueue, on
   const api = {
     init,
     add,
@@ -1178,10 +1180,10 @@
     flushQueue,
     on(eventName, handler) {
       if (typeof handler !== "function") return () => {};
-      state.handlers[eventName] = state.handlers[eventName] || [];
-      state.handlers[eventName].push(handler);
+      s.h[eventName] = s.h[eventName] || [];
+      s.h[eventName].push(handler);
       return () => {
-        state.handlers[eventName] = (state.handlers[eventName] || []).filter((candidate) => candidate !== handler);
+        s.h[eventName] = (s.h[eventName] || []).filter((candidate) => candidate !== handler);
       };
     }
   };

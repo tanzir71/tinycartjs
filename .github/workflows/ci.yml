@@ -41,6 +41,6 @@ jobs:
         shell: bash
         run: |
           bytes=$(wc -c < tinycart.js)
-          ceiling=48000
+          ceiling=45000
           echo "tinycart.js: ${bytes} bytes (ceiling: ${ceiling})"
-          test "$bytes" -lt "$ceiling"
+          test "$bytes" -le "$ceiling"

@@ -257,7 +257,7 @@ aesthetics. Every section added must show the product doing real work
 
 Byte budget note: before B tasks, do B0.
 
-- [ ] **B0. Reclaim bytes in the widget.**
+- [x] **B0. Reclaim bytes in the widget.**
   Files: `tinycart.js`, `tests/static.test.mjs`.
   Target: free ≥2,500 bytes with zero behavior change. Techniques: alias
   repeated strings (`var(--tc-line,#ddd)` etc.) via shorter custom properties
