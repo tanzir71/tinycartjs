@@ -351,7 +351,7 @@ Byte budget note: before B tasks, do B0.
   - [ ] Wrong ID+phone pair reveals nothing (constant-ish response, no enumeration).
   - [ ] No unescaped output (grep for `echo` paths; reuse admin.php escaping helpers).
 
-- [ ] **C4. i18n starter packs (COD-market wedge).**
+- [x] **C4. i18n starter packs (COD-market wedge).**
   Files: new `examples/strings/` (`bn.json`, `hi.json`, `ur.json`, `ar.json`,
   `es.json`, `fr.json`), `docs.html`, `README.md`.
   The `strings` config already supports overrides — ship ready-made translation

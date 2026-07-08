@@ -49,6 +49,7 @@
           <a href="#quick-start">Quick start</a>
           <a href="#attributes">Product attributes</a>
           <a href="#configuration">Configuration</a>
+          <a href="#i18n">i18n</a>
           <a href="#payload">Checkout payload</a>
           <a href="#shopping-flows">Shopping flows</a>
           <a href="#statuses">Status reference</a>
@@ -100,6 +101,7 @@
   cartKey: "store-1",
   currency: "USD",
   locale: "en-US",
+  dir: "ltr",
   apiCheckout: "/checkout.php",
   apiCoupon: "/coupon.php",
   catalogUrl: "/catalog.php",
@@ -123,11 +125,32 @@
                   <tr><td><code>apiCheckout</code></td><td>Checkout POST target.</td><td>Required unless <code>onCheckout</code> handles the request.</td></tr>
                   <tr><td><code>apiCoupon</code></td><td>Coupon preview endpoint.</td><td>Checkout still validates coupons again.</td></tr>
                   <tr><td><code>catalogUrl</code></td><td>Server catalog hydration.</td><td>Improves display accuracy; checkout remains final truth.</td></tr>
+                  <tr><td><code>locale</code></td><td>Browser currency locale.</td><td>Amounts remain integer cents internally.</td></tr>
+                  <tr><td><code>dir</code></td><td>Text direction.</td><td>Use <code>rtl</code> for Arabic or Urdu packs.</td></tr>
+                  <tr><td><code>strings</code></td><td>Visible copy overrides.</td><td>Starter packs live in <code>examples/strings/</code>.</td></tr>
                   <tr><td><code>paymentMethods</code></td><td>Visible shopper choices.</td><td>Radio controls render only when multiple methods are configured.</td></tr>
                   <tr><td><code>apiKey</code></td><td>Optional endpoint key.</td><td>Sent as <code>X-API-KEY</code>; never use a secret admin key here.</td></tr>
                 </tbody>
               </table>
             </div>
+          </section>
+
+          <section id="i18n">
+            <span class="idx">I18N</span>
+            <h2>Starter translations</h2>
+            <p>TinyCart ships complete starter JSON packs for Bengali, Hindi, Urdu, Arabic, Spanish, and French. Each file covers the full widget string table; review wording with a native speaker before production.</p>
+            <div class="grid grid-2">
+              <div class="cell"><h3>Files</h3><p><code>examples/strings/bn.json</code>, <code>hi.json</code>, <code>ur.json</code>, <code>ar.json</code>, <code>es.json</code>, and <code>fr.json</code>.</p></div>
+              <div class="cell"><h3>Direction</h3><p>Use <code>dir:"rtl"</code> with <code>ar.json</code> and <code>ur.json</code>. Bengali, Hindi, Spanish, and French use the default left-to-right layout.</p></div>
+            </div>
+            <pre class="pre-block">const strings = await fetch("/examples/strings/ar.json").then((res) =&gt; res.json());
+tinycart.init({
+  cartKey: "store-1",
+  currency: "AED",
+  locale: "ar-AE",
+  dir: "rtl",
+  strings
+});</pre>
           </section>
 
           <section id="payload">

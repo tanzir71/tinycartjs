@@ -88,6 +88,7 @@ tinycart.init({
   cartKey: "store-1",
   currency: "USD",
   locale: "en-US",
+  dir: "ltr",
   apiCheckout: "/checkout.php",
   apiCoupon: "/coupon.php",
   catalogUrl: "/catalog.php",
@@ -119,7 +120,7 @@ tinycart.init({
 
 JSON inside `data-tc-config` cannot include functions, so use `tinycart.init()` when you need hooks.
 
-Set `locale` to any `Intl.NumberFormat` locale, such as `de-DE` or `ja-JP`, to localize currency display while keeping all amounts as integer cents internally. Use `strings` to override visible widget copy for translation; unspecified keys use the English defaults.
+Set `locale` to any `Intl.NumberFormat` locale, such as `de-DE` or `ja-JP`, to localize currency display while keeping all amounts as integer cents internally. Use `strings` to override visible widget copy for translation; unspecified keys use the English defaults. Set `dir: "rtl"` for right-to-left languages such as Arabic or Urdu.
 
 Common configuration fields:
 
@@ -130,10 +131,30 @@ Common configuration fields:
 | `apiCoupon` | widget | Optional coupon preview endpoint. Checkout still validates coupons again. |
 | `catalogUrl` | widget | Optional read-only catalog endpoint for display price/stock hydration. |
 | `analyticsUrl` | widget | Optional event collector for cart and checkout telemetry. |
+| `locale` | widget | Currency/date locale for browser formatting. |
+| `dir` | widget | Optional text direction: `ltr` or `rtl`. |
+| `strings` | widget | Visible copy overrides, including the starter packs in `examples/strings/`. |
 | `paymentMethods` | widget | Shopper-visible methods such as `["online","cod"]`. Controls radio rendering only. |
 | `defaultPaymentMethod` | widget | Initial selected method when more than one method is configured. |
 | `apiKey` | widget | Public endpoint key sent as `X-API-KEY` when endpoint constants require it. |
 | `allowedOptionKeys` | widget | Optional allowlist for variant keys such as `size`, `color`, or `finish`. |
+
+## Starter Translations
+
+Ready-made starter packs live in `examples/strings/`: `bn.json`, `hi.json`, `ur.json`, `ar.json`, `es.json`, and `fr.json`. They cover every key in the widget `STRINGS` table. Review wording with a native speaker before production.
+
+```js
+const strings = await fetch("/examples/strings/ar.json").then((res) => res.json());
+tinycart.init({
+  cartKey: "store-1",
+  currency: "AED",
+  locale: "ar-AE",
+  dir: "rtl",
+  strings
+});
+```
+
+Use `dir: "rtl"` with `ar.json` and `ur.json`; Bengali, Hindi, Spanish, and French should use the default left-to-right direction.
 
 ## Checkout Payload and Response
 

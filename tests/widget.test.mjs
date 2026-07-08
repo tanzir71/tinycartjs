@@ -508,6 +508,16 @@ test("overrides visible widget strings through config", async () => {
   assert.notEqual(document.querySelector(".tc-toast").textContent, "Fill the required fields.");
 });
 
+test("sets widget direction from dir config", () => {
+  const { document } = createHarness({
+    scriptConfig: {
+      dir: "rtl"
+    }
+  });
+
+  assert.equal(document.querySelector(".tc-root").getAttribute("dir"), "rtl");
+});
+
 test("catalogUrl hydrates product truth and disables out-of-stock buttons", async () => {
   const { window, document } = createHarness({
     fetch: async () => ({
