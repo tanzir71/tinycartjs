@@ -330,7 +330,7 @@ Byte budget note: before B tasks, do B0.
   - [ ] Unpaid online orders cannot download; COD behavior matches config.
   - [ ] `php -l` clean; curl test cases added to `TESTPLAN.md`.
 
-- [ ] **C2. Shipping fees (vs Snipcart's core value).**
+- [x] **C2. Shipping fees (vs Snipcart's core value).**
   Files: `checkout.php`, `coupon.php` (totals preview), `tinycart.js`
   (display only), `SETUP.md`.
   Minimal, honest scope: a `SHIPPING` config in `checkout.php` — flat fee,

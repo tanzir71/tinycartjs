@@ -691,6 +691,49 @@ test("renders payment choices and submits the selected payment method", async ()
   assert.equal(document.querySelector(".tc-empty").textContent, "Your cart is empty.");
 });
 
+test("previews shipping zones while submitting only the selected zone", async () => {
+  let checkoutPayload;
+  const { window, document } = createHarness({
+    scriptConfig: {
+      shipping: {
+        zones: [
+          { id: "local", label: "Local pickup", amountCents: 200 },
+          { id: "remote", label: "Remote delivery", amountCents: 900 }
+        ]
+      }
+    },
+    fetch: async (_url, options) => {
+      checkoutPayload = JSON.parse(options.body);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, order_id: "TSHIP1", pay_url: null })
+      };
+    }
+  });
+
+  const select = document.querySelector('select[name="shippingZone"]');
+  assert.ok(select);
+  assert.equal(select.children.length, 2);
+  assert.equal(select.children[0].textContent, "Local pickup");
+  assert.equal(select.children[1].textContent, "Remote delivery");
+
+  window.tinycart.add({ id: "tee-001", name: "TinyCart Tee", price: "24.00", qty: 1 });
+  select.value = "remote";
+  select.dispatchEvent(new FakeEvent("change"));
+  assert.equal(document.querySelector(".tc-shipping").textContent, "$9.00");
+  assert.equal(document.querySelector(".tc-modal-total").textContent, "$33.00");
+
+  fillCheckoutForm(document);
+  document.querySelector(".tc-form").dispatchEvent(new FakeEvent("submit"));
+  await flushAsync();
+
+  assert.deepEqual(checkoutPayload.shipping, { zone: "remote" });
+  assert.equal("amount_cents" in checkoutPayload.shipping, false);
+  assert.equal(checkoutPayload.cart.totals.shippingCents, 900);
+  assert.equal(checkoutPayload.cart.totals.totalCents, 3300);
+});
+
 test("online checkout renders payment handoff before redirect", async () => {
   let assigned = "";
   const { window, document } = createHarness({

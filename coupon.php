@@ -29,6 +29,12 @@ const COUPONS = [
     'EXPIRED' => ['type' => 'percent', 'value' => 15, 'expires_at' => '2000-01-01T00:00:00Z'],
 ];
 
+const COUPON_SHIPPING = [
+    'amount_cents' => 0,
+    'free_above_cents' => null,
+    'zones' => [],
+];
+
 couponMain();
 
 function couponMain(): void
@@ -52,6 +58,7 @@ function couponMain(): void
         $code = strtoupper(couponCleanString($payload['code'] ?? '', 40));
         $subtotalCents = couponSubtotalCents($payload['cart'] ?? []);
         $coupon = couponValidate($code, $subtotalCents, 'couponOverrideActive');
+        $shipping = couponResolveShipping($payload['shipping'] ?? [], $subtotalCents, $coupon['discount_cents']);
 
         couponJson([
             'ok' => true,
@@ -59,6 +66,9 @@ function couponMain(): void
             'type' => $coupon['type'],
             'value' => $coupon['value'],
             'discount_cents' => $coupon['discount_cents'],
+            'shipping_cents' => $shipping['amount_cents'],
+            'shipping_zone' => $shipping['zone'],
+            'total_cents' => max(0, $subtotalCents - $coupon['discount_cents']) + $shipping['amount_cents'],
             'message' => $coupon['code'] . ' applied.',
         ]);
     } catch (CouponClientError $error) {
@@ -200,6 +210,36 @@ function couponValidate(string $code, int $subtotalCents, ?callable $couponOverr
         'value' => $value,
         'discount_cents' => couponDiscountCents($type, $value, $subtotalCents),
     ];
+}
+
+function couponResolveShipping(mixed $shipping, int $subtotalCents, int $discountCents): array
+{
+    $zones = COUPON_SHIPPING['zones'] ?? [];
+    $zone = null;
+    if (is_array($zones) && count($zones) > 0) {
+        $requested = is_array($shipping) ? couponCleanString($shipping['zone'] ?? '', 80) : '';
+        if ($requested === '') {
+            $requested = (string)array_key_first($zones);
+        }
+        if (!isset($zones[$requested]) || !is_array($zones[$requested])) {
+            throw new CouponClientError('Invalid shipping zone', 400);
+        }
+        $amount = couponCentsFromConfig($zones[$requested]['amount_cents'] ?? 0);
+        $zone = $requested;
+    } else {
+        $amount = couponCentsFromConfig(COUPON_SHIPPING['amount_cents'] ?? 0);
+    }
+
+    $freeAbove = COUPON_SHIPPING['free_above_cents'] ?? null;
+    if ($freeAbove !== null && $subtotalCents >= couponCentsFromConfig($freeAbove)) {
+        $amount = 0;
+    }
+    return ['amount_cents' => $amount, 'zone' => $zone];
+}
+
+function couponCentsFromConfig(mixed $value): int
+{
+    return max(0, min(100000000, (int)$value));
 }
 
 function couponDiscountCents(string $type, float $value, int $subtotalCents): int

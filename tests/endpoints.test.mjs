@@ -121,6 +121,33 @@ function checkoutPayload(coupon) {
   };
 }
 
+const checkoutShippingConfig = `const SHIPPING = [
+    'amount_cents' => 0,
+    'free_above_cents' => null,
+    'zones' => [],
+];`;
+
+const zoneShippingConfig = `const SHIPPING = [
+    'amount_cents' => 0,
+    'free_above_cents' => null,
+    'zones' => [
+        'local' => ['label' => 'Local pickup', 'amount_cents' => 200],
+        'remote' => ['label' => 'Remote delivery', 'amount_cents' => 900],
+    ],
+];`;
+
+const flatShippingConfig = `const SHIPPING = [
+    'amount_cents' => 500,
+    'free_above_cents' => null,
+    'zones' => [],
+];`;
+
+const couponShippingConfig = `const COUPON_SHIPPING = [
+    'amount_cents' => 0,
+    'free_above_cents' => null,
+    'zones' => [],
+];`;
+
 function digitalPayload() {
   const payload = checkoutPayload(null);
   payload.cart.items = [{
@@ -218,6 +245,84 @@ echo json_encode($coupon, JSON_UNESCAPED_SLASHES);
 `),
     /Coupon not valid/
   );
+});
+
+test("checkout computes shipping server-side after coupons", () => {
+  const result = runCheckoutSnippet(`
+$order = validateOrderPayload($payload);
+echo json_encode([
+    'subtotal_cents' => $order['subtotal_cents'],
+    'discount_cents' => $order['discount_cents'],
+    'shipping_cents' => $order['shipping_cents'],
+    'total_cents' => $order['total_cents'],
+], JSON_UNESCAPED_SLASHES);
+`, checkoutPayload({
+      code: "SAVE10",
+      type: "percent",
+      value: 10,
+      amount: 240
+  }), [[checkoutShippingConfig, flatShippingConfig]]);
+
+  assert.deepEqual(result, {
+    subtotal_cents: 2400,
+    discount_cents: 240,
+    shipping_cents: 500,
+    total_cents: 2660
+  });
+});
+
+test("shipping zone tampering cannot lower the configured server fee", () => {
+  const payload = {
+    ...checkoutPayload(null),
+    shipping: { zone: "remote", amount_cents: 0 }
+  };
+  const result = runCheckoutSnippet(`
+$order = validateOrderPayload($payload);
+echo json_encode([
+    'shipping_cents' => $order['shipping_cents'],
+    'shipping_zone' => $order['shipping_zone'],
+    'shipping_label' => $order['shipping_label'],
+    'total_cents' => $order['total_cents'],
+], JSON_UNESCAPED_SLASHES);
+`, payload, [[checkoutShippingConfig, zoneShippingConfig]]);
+
+  assert.deepEqual(result, {
+    shipping_cents: 900,
+    shipping_zone: "remote",
+    shipping_label: "Remote delivery",
+    total_cents: 3300
+  });
+});
+
+test("coupon preview includes server shipping and total cents", () => {
+  const result = runCouponSnippet(`
+$payload = [
+    'code' => 'SAVE10',
+    'cart' => ['totals' => ['subtotalCents' => 2400]],
+    'shipping' => ['zone' => 'remote', 'amount_cents' => 0],
+];
+$subtotalCents = couponSubtotalCents($payload['cart']);
+$coupon = couponValidate('SAVE10', $subtotalCents, null);
+$shipping = couponResolveShipping($payload['shipping'], $subtotalCents, $coupon['discount_cents']);
+echo json_encode([
+    'discount_cents' => $coupon['discount_cents'],
+    'shipping_cents' => $shipping['amount_cents'],
+    'total_cents' => max(0, $subtotalCents - $coupon['discount_cents']) + $shipping['amount_cents'],
+], JSON_UNESCAPED_SLASHES);
+`, [[couponShippingConfig, `const COUPON_SHIPPING = [
+    'amount_cents' => 0,
+    'free_above_cents' => null,
+    'zones' => [
+        'local' => ['label' => 'Local pickup', 'amount_cents' => 200],
+        'remote' => ['label' => 'Remote delivery', 'amount_cents' => 900],
+    ],
+];`]]);
+
+  assert.deepEqual(result, {
+    discount_cents: 240,
+    shipping_cents: 900,
+    total_cents: 3060
+  });
 });
 
 test("checkout rejects price tampering before storing orders", () => {

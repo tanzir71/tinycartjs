@@ -43,6 +43,7 @@ If your host allows directories outside `public_html`, place `data/` outside web
    - Replace `HMAC_SECRET`.
    - Replace `PRODUCT_CATALOG` with your real product ids, prices, and stock.
    - Replace `COUPONS` with your real server-side coupon rules.
+   - Set `SHIPPING` if you charge flat delivery, offer free shipping above a subtotal, or need shopper-selected flat zones.
    - Leave `ENABLED_PAYMENT_METHODS` empty for legacy behavior, or set values such as `['online', 'cod']`; set `DEFAULT_PAYMENT_METHOD` when you want one selected first.
    - Leave `PAYMENT_PROVIDER` blank, or set it to `stripe`/`paypal` and configure the matching secret keys plus `PAYMENT_SUCCESS_URL` and `PAYMENT_CANCEL_URL`.
    - For PayPal, set `PAYMENT_SUCCESS_URL` to `/tinycart/payment.php?order_id={ORDER_ID}` so the return handler can capture the approved order.
@@ -51,6 +52,7 @@ If your host allows directories outside `public_html`, place `data/` outside web
    - Set `COUPON_ALLOWED_ORIGINS` to your real storefront origins.
    - Add long random `COUPON_API_KEYS` if you want the `X-API-KEY` check.
    - Keep `COUPONS` in sync with `checkout.php`; checkout is the source of truth.
+   - Keep `COUPON_SHIPPING` in sync with checkout `SHIPPING` if you want coupon previews to include delivery fees.
 4. Edit `payment.php` if payment providers are enabled:
    - Set `STRIPE_WEBHOOK_SECRET` for signed Stripe `checkout.session.completed` webhooks.
    - Set `PAYPAL_CLIENT_ID` and `PAYPAL_SECRET` for PayPal return capture.
@@ -101,8 +103,8 @@ Keep these constants aligned across files:
 
 | File | Constants to review | Notes |
 | --- | --- | --- |
-| `checkout.php` | `PRODUCT_CATALOG`, `COUPONS`, `ENABLED_PAYMENT_METHODS`, `PAYMENT_PROVIDER`, `WEBHOOK_URL`, `ORDER_EMAIL_TO` | Checkout is the final authority for money, stock, payment method, and order creation. |
-| `coupon.php` | `COUPONS`, `COUPON_ALLOWED_ORIGINS`, `COUPON_API_KEYS` | Coupon preview should match checkout, but checkout still recomputes everything. |
+| `checkout.php` | `PRODUCT_CATALOG`, `COUPONS`, `SHIPPING`, `ENABLED_PAYMENT_METHODS`, `PAYMENT_PROVIDER`, `WEBHOOK_URL`, `ORDER_EMAIL_TO` | Checkout is the final authority for money, shipping, stock, payment method, and order creation. |
+| `coupon.php` | `COUPONS`, `COUPON_SHIPPING`, `COUPON_ALLOWED_ORIGINS`, `COUPON_API_KEYS` | Coupon preview should match checkout, but checkout still recomputes everything. |
 | `catalog.php` | `PRODUCT_CATALOG`, `CATALOG_ALLOWED_ORIGINS` | Catalog hydration improves display accuracy; it does not replace checkout validation. |
 | `payment.php` | `STRIPE_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET` | Only needed when online payments are enabled. |
 | `admin.php` | `ADMIN_ALLOWED_ORIGINS`, `ADMIN_API_KEYS`, `ADMIN_PASSWORD_HASH`, `ADMIN_PRODUCT_CATALOG`, `ADMIN_COUPONS` | Admin catalog/coupon lists should mirror checkout so operators see the right stock and toggles. |
@@ -128,6 +130,54 @@ Add a `file` path to products in `checkout.php` when a paid order should receive
 Mirror the same product id and file path in `download.php` under `DOWNLOAD_FILES`, and keep `DOWNLOAD_SECRET` equal to `HMAC_SECRET` unless you intentionally rotate download links separately. Put files outside the public web root when your host allows it; otherwise guard the directory with an `.htaccess` file such as `Require all denied` and let `download.php` stream files after verification.
 
 Download links expire after 72 hours by default and are capped by `DOWNLOAD_MAX_COUNT` (default 5). Online orders must be marked `paid` by `payment.php` before the link streams. COD orders are blocked until an operator marks cash collected; set `DOWNLOAD_ALLOW_COD_DUE` only if you knowingly want COD-due orders to download before collection.
+
+## Shipping Fees
+
+Shipping is deliberately simple: no carrier APIs, ever. `checkout.php` computes and stores the final `shipping_cents`; the widget only previews it.
+
+For a flat fee, set cents in `checkout.php`:
+
+```php
+const SHIPPING = [
+    'amount_cents' => 500,
+    'free_above_cents' => null,
+    'zones' => [],
+];
+```
+
+For free shipping above a subtotal, set `free_above_cents`. The threshold uses the server subtotal before discounts:
+
+```php
+const SHIPPING = [
+    'amount_cents' => 500,
+    'free_above_cents' => 5000,
+    'zones' => [],
+];
+```
+
+For flat zones, configure the same zone ids in `checkout.php` and `coupon.php`. Checkout ignores any browser-sent amount and revalidates the selected `zone` against this list:
+
+```php
+const SHIPPING = [
+    'amount_cents' => 0,
+    'free_above_cents' => null,
+    'zones' => [
+        'dhaka' => ['label' => 'Dhaka city', 'amount_cents' => 800],
+        'outside' => ['label' => 'Outside Dhaka', 'amount_cents' => 1500],
+    ],
+];
+```
+
+Mirror zone labels in the widget config so shoppers see the selector:
+
+```html
+<script
+  src="/tinycart/tinycart.js"
+  data-tc-config='{"cartKey":"store-1","currency":"BDT","apiCheckout":"/tinycart/checkout.php","apiCoupon":"/tinycart/coupon.php","shipping":{"zones":[{"id":"dhaka","label":"Dhaka city","amountCents":800},{"id":"outside","label":"Outside Dhaka","amountCents":1500}]}}'>
+</script>
+```
+
+The posted checkout payload includes only `shipping.zone`; server totals are always `subtotal - discount + shipping`, in integer cents.
 
 ## Cash on Delivery
 
@@ -263,6 +313,7 @@ If your checkout or collect endpoint is on another subdomain, add that origin to
 | Checkout returns `price mismatch` | The page HTML, catalog endpoint, and `PRODUCT_CATALOG` are out of sync. Refresh cached pages after changing products. |
 | Checkout returns `Out of stock` | The SQLite `inventory` table has less stock than the cart asks for. Restock in admin or inspect `data/orders.sqlite`. |
 | Coupon preview works but final checkout has no discount | `coupon.php`, `checkout.php`, or the `coupon_overrides` table disagree. Checkout is the final authority. |
+| Shipping preview and final total differ | Keep widget `shipping`, coupon `COUPON_SHIPPING`, and checkout `SHIPPING` zone ids and cents aligned. Checkout is final. |
 | Admin dashboard says access is disabled | Set either `ADMIN_API_KEYS` or `ADMIN_PASSWORD_HASH`; leave neither blank in production. |
 | Admin POST returns `403` | The session CSRF token is missing or stale. Reload the dashboard and submit again. |
 | Stripe or PayPal redirect is missing | `paymentMethod` is `online`, `PAYMENT_PROVIDER` is set, and provider credentials plus success/cancel URLs must all be valid. |

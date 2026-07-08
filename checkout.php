@@ -42,6 +42,12 @@ const COUPONS = [
     'EXPIRED' => ['type' => 'percent', 'value' => 15, 'expires_at' => '2000-01-01T00:00:00Z'],
 ];
 
+const SHIPPING = [
+    'amount_cents' => 0,
+    'free_above_cents' => null,
+    'zones' => [],
+];
+
 const PAYMENT_PROVIDER = '';
 const ENABLED_PAYMENT_METHODS = [];
 const DEFAULT_PAYMENT_METHOD = '';
@@ -96,6 +102,9 @@ function main(): void
             'pay_url' => $payment['url'] ?? null,
             'subtotal_cents' => $validated['subtotal_cents'],
             'discount_cents' => $validated['discount_cents'],
+            'shipping_cents' => $validated['shipping_cents'],
+            'shipping_zone' => $validated['shipping_zone'],
+            'shipping_label' => $validated['shipping_label'],
             'total_cents' => $validated['total_cents'],
             'coupon_code' => $validated['coupon_code'],
             'payment_method' => $validated['payment_method'],
@@ -290,7 +299,8 @@ function validateOrderPayload(array $payload, ?callable $couponOverride = null):
 
     $coupon = resolveCheckoutCoupon($cart['coupon'] ?? null, $serverSubtotal, $couponOverride);
     $discountCents = $coupon['discount_cents'];
-    $totalCents = max(0, $serverSubtotal - $discountCents);
+    $shipping = resolveShipping($payload['shipping'] ?? [], $serverSubtotal, $discountCents);
+    $totalCents = max(0, $serverSubtotal - $discountCents) + $shipping['amount_cents'];
 
     return [
         'customer' => [
@@ -302,6 +312,9 @@ function validateOrderPayload(array $payload, ?callable $couponOverride = null):
         'items' => $validatedItems,
         'subtotal_cents' => $serverSubtotal,
         'discount_cents' => $discountCents,
+        'shipping_cents' => $shipping['amount_cents'],
+        'shipping_zone' => $shipping['zone'],
+        'shipping_label' => $shipping['label'],
         'total_cents' => $totalCents,
         'coupon_code' => $coupon['code'],
         'payment_method' => $paymentMethod,
@@ -386,6 +399,39 @@ function resolveCheckoutCoupon(mixed $coupon, int $subtotalCents, ?callable $cou
     ];
 }
 
+function resolveShipping(mixed $shipping, int $subtotalCents, int $discountCents): array
+{
+    $zones = SHIPPING['zones'] ?? [];
+    $zone = null;
+    $label = null;
+    if (is_array($zones) && count($zones) > 0) {
+        $requested = is_array($shipping) ? cleanString($shipping['zone'] ?? '', 80) : '';
+        if ($requested === '') {
+            $requested = (string)array_key_first($zones);
+        }
+        if (!isset($zones[$requested]) || !is_array($zones[$requested])) {
+            throw new ClientError('Invalid shipping zone', 400);
+        }
+        $selected = $zones[$requested];
+        $amount = centsFromConfig($selected['amount_cents'] ?? 0);
+        $zone = $requested;
+        $label = cleanString($selected['label'] ?? $requested, 120) ?: $requested;
+    } else {
+        $amount = centsFromConfig(SHIPPING['amount_cents'] ?? 0);
+    }
+
+    $freeAbove = SHIPPING['free_above_cents'] ?? null;
+    if ($freeAbove !== null && $subtotalCents >= centsFromConfig($freeAbove)) {
+        $amount = 0;
+    }
+    return ['amount_cents' => $amount, 'zone' => $zone, 'label' => $label];
+}
+
+function centsFromConfig(mixed $value): int
+{
+    return max(0, min(100000000, (int)$value));
+}
+
 function validateCoupon(string $code, int $subtotalCents, ?callable $couponOverride = null): array
 {
     if (!isset(COUPONS[$code])) {
@@ -444,6 +490,8 @@ function db(): PDO
             customer_address TEXT NOT NULL,
             subtotal_cents INTEGER NOT NULL,
             discount_cents INTEGER NOT NULL DEFAULT 0,
+            shipping_cents INTEGER NOT NULL DEFAULT 0,
+            shipping_zone TEXT,
             total_cents INTEGER NOT NULL,
             coupon_code TEXT,
             payment_status TEXT NOT NULL DEFAULT "pending",
@@ -456,6 +504,8 @@ function db(): PDO
         )'
     );
     ensureColumn($pdo, 'orders', 'discount_cents', 'INTEGER NOT NULL DEFAULT 0');
+    ensureColumn($pdo, 'orders', 'shipping_cents', 'INTEGER NOT NULL DEFAULT 0');
+    ensureColumn($pdo, 'orders', 'shipping_zone', 'TEXT');
     ensureColumn($pdo, 'orders', 'total_cents', 'INTEGER NOT NULL DEFAULT 0');
     ensureColumn($pdo, 'orders', 'coupon_code', 'TEXT');
     ensureColumn($pdo, 'orders', 'payment_method', 'TEXT NOT NULL DEFAULT "manual"');
@@ -547,12 +597,12 @@ function storeOrder(PDO $pdo, array $order): string
         $insertOrder = $pdo->prepare(
             'INSERT INTO orders (
                 id, cart_key, currency, customer_name, customer_phone, customer_email,
-                customer_address, subtotal_cents, discount_cents, total_cents, coupon_code,
+                customer_address, subtotal_cents, discount_cents, shipping_cents, shipping_zone, total_cents, coupon_code,
                 payment_method, payment_status, payment_provider, payment_session_id, paid_at,
                 fulfillment_status, admin_note, page, ip_hash, created_at, updated_at
             ) VALUES (
                 :id, :cart_key, :currency, :customer_name, :customer_phone, :customer_email,
-                :customer_address, :subtotal_cents, :discount_cents, :total_cents, :coupon_code,
+                :customer_address, :subtotal_cents, :discount_cents, :shipping_cents, :shipping_zone, :total_cents, :coupon_code,
                 :payment_method, :payment_status, :payment_provider, :payment_session_id, :paid_at,
                 :fulfillment_status, :admin_note, :page, :ip_hash, :created_at, :updated_at
             )'
@@ -568,6 +618,8 @@ function storeOrder(PDO $pdo, array $order): string
             ':customer_address' => $order['customer']['address'],
             ':subtotal_cents' => $order['subtotal_cents'],
             ':discount_cents' => $order['discount_cents'],
+            ':shipping_cents' => $order['shipping_cents'],
+            ':shipping_zone' => $order['shipping_zone'],
             ':total_cents' => $order['total_cents'],
             ':coupon_code' => $order['coupon_code'],
             ':payment_method' => $order['payment_method'],
@@ -675,6 +727,9 @@ function orderSummary(string $orderId, array $order): array
         'currency' => $order['currency'],
         'subtotal_cents' => $order['subtotal_cents'],
         'discount_cents' => $order['discount_cents'],
+        'shipping_cents' => $order['shipping_cents'],
+        'shipping_zone' => $order['shipping_zone'],
+        'shipping_label' => $order['shipping_label'],
         'total_cents' => $order['total_cents'],
         'coupon_code' => $order['coupon_code'],
         'payment_method' => $order['payment_method'],
@@ -725,6 +780,9 @@ function plainOrderEmail(array $summary): string
 {
     $lines = [
         'Order: ' . $summary['order_id'],
+        'Subtotal: ' . $summary['subtotal_cents'] . ' ' . $summary['currency'],
+        'Discount: ' . $summary['discount_cents'] . ' ' . $summary['currency'],
+        'Shipping: ' . $summary['shipping_cents'] . ' ' . $summary['currency'],
         'Total: ' . $summary['total_cents'] . ' ' . $summary['currency'],
     ];
     foreach ($summary['items'] as $item) {
