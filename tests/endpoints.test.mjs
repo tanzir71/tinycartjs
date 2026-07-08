@@ -732,6 +732,60 @@ echo json_encode([
   assert.equal(result.calls[3].params[":id"], "T404");
 });
 
+test("order status misses use the same response shape and similar timing", () => {
+  const result = runOrderStatusSnippet(`
+class FakeStatement {
+    public array $params = [];
+    public function __construct(private FakePdo $pdo) {}
+    public function execute(array $params = []): void {
+        $this->params = $params;
+        $this->pdo->calls[] = $params;
+    }
+    public function fetch(): mixed {
+        usleep(2000);
+        return false;
+    }
+    public function fetchAll(): array { return []; }
+}
+class FakePdo {
+    public array $calls = [];
+    public function prepare(string $sql): FakeStatement {
+        return new FakeStatement($this);
+    }
+}
+function missLookup(FakePdo $pdo, string $orderId, string $phone): array {
+    $start = hrtime(true);
+    $order = lookupOrderStatus($pdo, $orderId, $phone);
+    $html = renderOrderStatusPage($order, true);
+    return [
+        'status' => 200,
+        'found' => $order !== null,
+        'elapsed_ms' => (hrtime(true) - $start) / 1000000,
+        'body_hash' => hash('sha256', $html),
+    ];
+}
+$pdo = new FakePdo();
+$wrongPhone = missLookup($pdo, 'T123', '+0000000000');
+$wrongId = missLookup($pdo, 'T404', '+15551234567');
+echo json_encode([
+    'wrong_phone' => $wrongPhone,
+    'wrong_id' => $wrongId,
+    'elapsed_delta_ms' => abs($wrongPhone['elapsed_ms'] - $wrongId['elapsed_ms']),
+    'calls' => $pdo->calls,
+], JSON_UNESCAPED_SLASHES);
+`);
+
+  assert.equal(result.wrong_phone.status, 200);
+  assert.equal(result.wrong_id.status, 200);
+  assert.equal(result.wrong_phone.found, false);
+  assert.equal(result.wrong_id.found, false);
+  assert.equal(result.wrong_phone.body_hash, result.wrong_id.body_hash);
+  assert.ok(result.elapsed_delta_ms <= 20, `miss timing delta should stay small, got ${result.elapsed_delta_ms}ms`);
+  assert.equal(result.calls.length, 2);
+  assert.equal(result.calls[0][":id"], "T123");
+  assert.equal(result.calls[1][":id"], "T404");
+});
+
 test("order status page escapes output and shows only partial address", () => {
   const result = runOrderStatusSnippet(`
 $order = [
@@ -1004,6 +1058,33 @@ echo json_encode(['links' => $links, 'email' => plainOrderEmail($summary)], JSON
   assert.match(result.email, /Download TinyCart Ebook: download\.php/);
 });
 
+test("download endpoint rejects forged and expired signatures before storage lookup", async () => {
+  await withServer(async (base) => {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    const forged = new URL(`${base}/download.php`);
+    forged.search = new URLSearchParams({
+      order: "TDOWNLOAD1",
+      item: "ebook-001",
+      exp: String(exp),
+      sig: hmac(`TFORGED|ebook-001|${exp}`, "replace-with-32-plus-random-bytes")
+    }).toString();
+    const [forgedResponse, forgedJson] = await getJson(forged);
+    assert.equal(forgedResponse.status, 403);
+    assert.deepEqual(forgedJson, { ok: false, error: "Invalid download link" });
+
+    const expired = new URL(`${base}/download.php`);
+    expired.search = new URLSearchParams({
+      order: "TDOWNLOAD1",
+      item: "ebook-001",
+      exp: "1",
+      sig: hmac("TDOWNLOAD1|ebook-001|1", "replace-with-32-plus-random-bytes")
+    }).toString();
+    const [expiredResponse, expiredJson] = await getJson(expired);
+    assert.equal(expiredResponse.status, 403);
+    assert.deepEqual(expiredJson, { ok: false, error: "Download link expired" });
+  });
+});
+
 test("digital download links are signed, gated, and capped", { skip: hasPdoSqlite ? false : "pdo_sqlite extension is unavailable in local PHP" }, async () => {
   await withServer(async (base, fixture) => {
     const [, order] = await postJson(base, "checkout.php", digitalPayload());
@@ -1016,6 +1097,7 @@ test("digital download links are signed, gated, and capped", { skip: hasPdoSqlit
     const [tamperedResponse, tamperedJson] = await getJson(tampered);
     assert.equal(tamperedResponse.status, 403);
     assert.equal(tamperedJson.ok, false);
+    assert.equal(tamperedJson.error, "Invalid download link");
 
     const expired = new URL(link);
     expired.searchParams.set("exp", "1");
@@ -1023,6 +1105,7 @@ test("digital download links are signed, gated, and capped", { skip: hasPdoSqlit
     const [expiredResponse, expiredJson] = await getJson(expired);
     assert.equal(expiredResponse.status, 403);
     assert.equal(expiredJson.ok, false);
+    assert.equal(expiredJson.error, "Download link expired");
 
     setOrderPayment(fixture, order.order_id, "paid", "manual");
     for (let index = 0; index < 5; index += 1) {
@@ -1033,6 +1116,7 @@ test("digital download links are signed, gated, and capped", { skip: hasPdoSqlit
     const [limitedResponse, limitedJson] = await getJson(link);
     assert.equal(limitedResponse.status, 403);
     assert.equal(limitedJson.ok, false);
+    assert.equal(limitedJson.error, "Download limit reached");
   });
 });
 

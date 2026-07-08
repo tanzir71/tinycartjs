@@ -54,6 +54,19 @@ Forged checkout coupons are ignored. Sending `{"code":"FAKE100","amount":2400}` 
 
 After configuring admin auth, deactivate `SAVE10` from `admin.php`. Expected: `/coupon.php` rejects `SAVE10`, and `/checkout.php` ignores a submitted `SAVE10` coupon. Reactivating it restores both preview and checkout discounts.
 
+## Shipping Fees
+
+Configure `SHIPPING` in `checkout.php` with either a flat amount or named zones such as `local` and `remote`, then submit checkout with a forged client shipping amount:
+
+```bash
+curl -i -X POST http://127.0.0.1:8000/checkout.php \
+  -H "Origin: http://127.0.0.1:8000" \
+  -H "Content-Type: application/json" \
+  --data '{"cartKey":"demo-store","currency":"USD","customer":{"name":"Ada Lovelace","phone":"+15551234567","email":"ada@example.com","address":"1 Byte Lane"},"shipping":{"zone":"remote","amount_cents":0},"cart":{"items":[{"id":"tee-001","name":"TinyCart Tee","priceCents":2400,"qty":1,"options":{"size":"M"}}],"coupon":{"code":"SAVE10","amount":240},"totals":{"subtotalCents":2400,"discountCents":240,"totalCents":2160}},"page":"http://127.0.0.1:8000/sample.html"}'
+```
+
+Expected: the server ignores `shipping.amount_cents`, resolves the configured `remote` zone, stores `shipping_cents`, and returns `total_cents = subtotal - discount + shipping`. `/coupon.php` preview should return the same `shipping_cents` and `total_cents` for the selected zone.
+
 ## Payment Handoff
 
 With `PAYMENT_PROVIDER` blank in `checkout.php`, successful checkout should still return `"pay_url":null`.
@@ -106,6 +119,8 @@ curl -i "http://127.0.0.1:8000/download.php?order=TORDER&item=ebook-001&exp=1&si
 ```
 
 Expected: HTTP `403` JSON and no file bytes. Download the paid link more than `DOWNLOAD_MAX_COUNT` times; the next request should return HTTP `403` JSON with `Download limit reached`.
+
+Automated tests also send forged and expired links before any storage lookup, so these paths must reject with the same JSON errors even when SQLite is unavailable locally. The download-count cap requires `pdo_sqlite` because it persists attempts in the order database.
 
 ## Catalog Endpoint
 
@@ -203,6 +218,24 @@ Admin write checks:
 - The `Cash collected` COD action should set `payment_status` to `paid` and populate `paid_at`.
 - Updating inventory should change the `inventory` stock shown in the panel.
 - CSV export should include only the current filtered order list and prefix formula-like cells such as `=`, `+`, `-`, and `@` with an apostrophe.
+
+## Order Status Lookup
+
+Post the same form once with a real order id and wrong phone, then once with a wrong order id and real phone:
+
+```bash
+curl -i -X POST http://127.0.0.1:8000/order-status.php \
+  -H "Origin: http://127.0.0.1:8000" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data 'order_id=TREAL123&phone=%2B0000000000'
+
+curl -i -X POST http://127.0.0.1:8000/order-status.php \
+  -H "Origin: http://127.0.0.1:8000" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data 'order_id=T404&phone=%2B15551234567'
+```
+
+Expected: both misses return HTTP `200` with the same "No matching order found" page shape and similar response timing. A hit requires exact order id and exact phone, escapes every rendered field, and shows only partial address context.
 
 ## Beacon / Collect Accepts JSON
 

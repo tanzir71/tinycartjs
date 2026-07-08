@@ -442,7 +442,7 @@ on Vercel.
   Acceptance:
   - [ ] New asserts fail when violations are reintroduced (verify by temporary mutation, then revert).
 
-- [ ] **E2. Feature tests for C1–C3.**
+- [x] **E2. Feature tests for C1–C3.**
   Files: `tests/endpoints.test.mjs`, `TESTPLAN.md`.
   Signed-link forgery/expiry/count for C1; shipping math + zone-tamper for C2;
   enumeration resistance for C3 (same status code + similar timing for wrong
