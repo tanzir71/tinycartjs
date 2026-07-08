@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
 const read = (file) => readFileSync(join(root, file), "utf8");
+const trackedFiles = gitTrackedFiles();
+const trackedTextFiles = trackedFiles.filter(isTextFilePath);
+const trackedHtmlPages = trackedFiles.filter((file) => file.endsWith(".html"));
 
 for (const file of [
   "tinycart.js",
@@ -14,6 +18,7 @@ for (const file of [
   "admin.php",
   "collect.php",
   "download.php",
+  "order-status.php",
   "README.md",
   "SETUP.md",
   "SECURITY.md",
@@ -215,6 +220,17 @@ const download = read("download.php");
 for (const token of ["DOWNLOAD_MAX_COUNT", "DOWNLOAD_ALLOW_COD_DUE", "hash_hmac", "hash_equals", "readfile", "Content-Disposition", "mime_content_type", "downloadRateLimit"]) {
   assert.ok(download.includes(token), `download.php should include ${token}`);
 }
+const orderStatus = read("order-status.php");
+for (const [file, source, helper] of [
+  ["download.php", download, "downloadRateLimit"],
+  ["order-status.php", orderStatus, "statusRateLimit"]
+]) {
+  assert.ok(!source.includes("Access-Control-Allow-Origin: *"), `${file} should not allow wildcard CORS`);
+  assert.ok(source.includes(`${helper}(`), `${file} should call its rate-limit helper`);
+  for (const token of ["flock(", "window_start", "RATE_LIMIT_WINDOW_SECONDS", "RATE_LIMIT_MAX_REQUESTS"]) {
+    assert.ok(source.includes(token), `${file} should use the shared file-backed rate-limit bucket pattern: ${token}`);
+  }
+}
 
 const readme = read("README.md");
 assert.ok(readme.includes("https://github.com/tanzir71/tinycartjs"), "README should use the chosen GitHub repo URL");
@@ -306,9 +322,18 @@ assert.ok(existsSync(join(root, "og-image.png")), "social preview image should e
 assert.ok(statSync(join(root, "og-image.png")).size > 1000, "social preview image should be a real PNG asset");
 assert.ok(statSync(join(root, "favicon-32.png")).size > 100, "32px PNG favicon should be a real asset");
 assert.ok(statSync(join(root, "apple-touch-icon.png")).size > 100, "Apple touch icon should be a real asset");
-for (const page of publicHtmlPages) {
+for (const page of trackedHtmlPages) {
   const html = read(page);
   assert.ok(!html.includes("fonts.googleapis.com") && !html.includes("fonts.gstatic.com"), `${page} should not request Google Fonts`);
+}
+for (const page of trackedHtmlPages) {
+  const html = read(page);
+  for (const token of ['property="og:title"', 'property="og:image"']) {
+    assert.ok(html.includes(token), `${page} should include ${token}`);
+  }
+}
+for (const page of publicHtmlPages) {
+  const html = read(page);
   for (const token of ['property="og:title"', 'property="og:description"', 'property="og:image"', 'name="twitter:card"']) {
     assert.ok(html.includes(token), `${page} should include ${token}`);
   }
@@ -335,7 +360,7 @@ for (const page of publicHtmlPages) {
   assert.equal(normalizeMarkup(extractElement(read(page), "header")), normalizeMarkup(extractElement(index, "header")), `${page} should share the landing header markup`);
   assert.equal(normalizeMarkup(extractElement(read(page), "footer")), normalizeMarkup(extractElement(index, "footer")), `${page} should share the landing footer markup`);
 }
-for (const file of listTextFiles(root)) {
+for (const file of trackedTextFiles) {
   const bytes = readFileSync(join(root, file));
   assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], `${file} should not start with a UTF-8 BOM`);
 }
@@ -508,6 +533,21 @@ function extractElement(html, tag) {
 
 function normalizeMarkup(markup) {
   return markup.replace(/\s+/g, " ").trim();
+}
+
+function gitTrackedFiles() {
+  try {
+    return execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8" })
+      .split(/\r?\n/)
+      .filter(Boolean);
+  } catch {
+    return listTextFiles(root);
+  }
+}
+
+function isTextFilePath(file) {
+  return /\.(html|css|js|php|md|mjs|json|xml|txt|yml|yaml|htaccess)$/i.test(file)
+    || file.startsWith(".");
 }
 
 function listTextFiles(dir, prefix = "") {

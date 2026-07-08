@@ -136,21 +136,47 @@ function downloadFilePath(string $itemId): string
 
 function downloadRateLimit(string $key): void
 {
-    if (!is_dir(DOWNLOAD_RATE_LIMIT_DIR)) {
-        mkdir(DOWNLOAD_RATE_LIMIT_DIR, 0755, true);
+    if (!is_dir(DOWNLOAD_RATE_LIMIT_DIR) && !mkdir(DOWNLOAD_RATE_LIMIT_DIR, 0750, true) && !is_dir(DOWNLOAD_RATE_LIMIT_DIR)) {
+        throw new RuntimeException('Could not create rate limit directory.');
     }
     $file = DOWNLOAD_RATE_LIMIT_DIR . '/' . hash('sha256', $key) . '.json';
     $now = time();
-    $hits = [];
-    if (is_file($file)) {
-        $hits = json_decode((string)file_get_contents($file), true) ?: [];
-        $hits = array_values(array_filter($hits, static fn($time) => is_int($time) && $time > $now - DOWNLOAD_RATE_LIMIT_WINDOW_SECONDS));
+    $bucket = ['window_start' => $now, 'count' => 0];
+    $blocked = false;
+
+    $fp = fopen($file, 'c+');
+    if (!$fp) {
+        throw new RuntimeException('Could not open rate limit file.');
     }
-    if (count($hits) >= DOWNLOAD_RATE_LIMIT_MAX_REQUESTS) {
+
+    try {
+        flock($fp, LOCK_EX);
+        $raw = stream_get_contents($fp);
+        if ($raw !== false && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $bucket = $decoded;
+            }
+        }
+        if (($now - (int)($bucket['window_start'] ?? 0)) >= DOWNLOAD_RATE_LIMIT_WINDOW_SECONDS) {
+            $bucket = ['window_start' => $now, 'count' => 0];
+        }
+        $bucket['count'] = (int)($bucket['count'] ?? 0) + 1;
+        if ($bucket['count'] > DOWNLOAD_RATE_LIMIT_MAX_REQUESTS) {
+            $blocked = true;
+        } else {
+            ftruncate($fp, 0);
+            rewind($fp);
+            fwrite($fp, json_encode($bucket));
+        }
+    } finally {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+    }
+
+    if ($blocked) {
         downloadJson(['ok' => false, 'error' => 'Too many requests'], 429);
     }
-    $hits[] = $now;
-    file_put_contents($file, json_encode($hits));
 }
 
 function downloadClientIp(): string

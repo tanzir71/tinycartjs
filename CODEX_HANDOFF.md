@@ -432,7 +432,7 @@ on Vercel.
 
 ### Phase E — Tests, guardrails for everything above
 
-- [ ] **E1. Extend static invariants.**
+- [x] **E1. Extend static invariants.**
   Files: `tests/static.test.mjs`.
   Add asserts: no BOM in any tracked text file; no `fonts.googleapis.com` in any
   HTML; every HTML page has `og:title` and `og:image`; `download.php` and
