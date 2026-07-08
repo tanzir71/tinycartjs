@@ -424,6 +424,19 @@ const setupHtml = read("setup.html");
 for (const token of ["TinyCart Setup", "Namecheap", "public_html/tinycart", ".htaccess", "ALLOWED_ORIGINS", "Recommended file layout", "Go-live checks", "Troubleshooting", "Webhook retries"]) {
   assert.ok(setupHtml.includes(token), `setup.html should include ${token}`);
 }
+for (const [page, html] of [["index.html", index], ["setup.html", setupHtml]]) {
+  for (const token of [
+    "DEPLOY.md#path-1-vercel-static-demo-site",
+    "DEPLOY.md#path-2-github-pages",
+    "DEPLOY.md#path-3-shared-hosting-for-a-real-store",
+    "Demo site -> Vercel",
+    "Demo site -> GitHub Pages",
+    "Store + checkout -> any PHP host"
+  ]) {
+    assert.ok(html.includes(token), `${page} should include deploy card detail: ${token}`);
+  }
+  assert.ok(/Vercel does not run (?:the )?PHP|not <code>checkout\.php<\/code>/.test(html), `${page} should be clear that PHP does not run on Vercel/Pages`);
+}
 
 const securityHtml = read("security.html");
 for (const token of ["TinyCart Security", "server-side price verification", "Content-Security-Policy", "HMAC", "Do not expose"]) {
@@ -477,6 +490,7 @@ const vercelIgnore = read(".vercelignore");
 for (const token of ["*.php", "tests/", "scripts/", "*.md"]) {
   assert.ok(vercelIgnore.includes(token), `.vercelignore should include ${token}`);
 }
+assert.ok(vercelIgnore.includes("!DEPLOY.md"), ".vercelignore should keep DEPLOY.md available for deploy-card links");
 const deploy = read("DEPLOY.md");
 for (const token of ["Vercel does not run PHP or persist SQLite", "Framework Preset", "GitHub Actions", "health.php", "DELETE", "ALLOWED_ORIGINS"]) {
   assert.ok(deploy.includes(token), `DEPLOY.md should document ${token}`);

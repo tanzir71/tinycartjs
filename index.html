@@ -288,6 +288,35 @@
       </div>
     </section>
 
+    <section id="deploy">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Deploy the right piece to the right host.</h2>
+          <p>TinyCart splits cleanly: the static demo site can live on free static hosting, while the real checkout belongs on a PHP host that can write SQLite.</p>
+        </div>
+        <div class="grid-hair highlights">
+          <div class="cell">
+            <div class="k">VERCEL</div>
+            <h3>Demo site -> Vercel, free</h3>
+            <p>Use Vercel for the marketing pages, docs, and <code>demo-store.html</code>. Checkout is stubbed there; Vercel does not run the PHP endpoints for this project.</p>
+            <p><a href="DEPLOY.md#path-1-vercel-static-demo-site">Vercel deploy steps</a></p>
+          </div>
+          <div class="cell">
+            <div class="k">PAGES</div>
+            <h3>Demo site -> GitHub Pages, free</h3>
+            <p>GitHub Pages is another static-only home for the public site and demo. It serves HTML, CSS, JS, and images, not <code>checkout.php</code>.</p>
+            <p><a href="DEPLOY.md#path-2-github-pages">GitHub Pages steps</a></p>
+          </div>
+          <div class="cell">
+            <div class="k">PHP</div>
+            <h3>Store + checkout -> any PHP host</h3>
+            <p>Put the real storefront, <code>checkout.php</code>, admin tools, and writable <code>data/</code> directory on shared hosting or a VPS with PHP 8+ and <code>pdo_sqlite</code>.</p>
+            <p><a href="DEPLOY.md#path-3-shared-hosting-for-a-real-store">PHP host checklist</a></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="demo">
       <div class="wrap">
         <div class="section-head">

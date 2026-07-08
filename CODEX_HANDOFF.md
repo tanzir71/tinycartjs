@@ -423,7 +423,7 @@ on Vercel.
   - [ ] `DEPLOY.md` tested by following it verbatim (fresh directory).
   - [ ] Landing page and demo work on a Vercel preview URL with checkout stubbed.
 
-- [ ] **D2. Landing page "Deploy" section.**
+- [x] **D2. Landing page "Deploy" section.**
   Files: `index.html`, `setup.html`.
   Three-card section mirroring DEPLOY.md paths, honest about which piece goes
   where ("Demo site → Vercel/Pages, free" / "Store + checkout → any PHP host").

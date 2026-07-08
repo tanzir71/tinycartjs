@@ -54,6 +54,36 @@
       </div>
     </section>
 
+    <section class="section" id="deploy">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="idx">DEPLOY PATHS</span>
+          <h2>Send each piece to the host that can actually run it.</h2>
+          <p>The static site and demo are safe on free static hosting. Real checkout needs PHP 8+, SQLite support, and a writable private data directory.</p>
+        </div>
+        <div class="grid grid-3">
+          <div class="cell">
+            <span class="k">VERCEL</span>
+            <h3>Demo site -> Vercel, free</h3>
+            <p>Deploy the marketing pages, docs, and <code>demo-store.html</code>. Vercel does not run PHP or persist SQLite for TinyCart, so checkout remains stubbed there.</p>
+            <p><a class="link" href="DEPLOY.md#path-1-vercel-static-demo-site">Read the Vercel path</a></p>
+          </div>
+          <div class="cell">
+            <span class="k">PAGES</span>
+            <h3>Demo site -> GitHub Pages, free</h3>
+            <p>Use the existing Pages workflow for the static docs/demo artifact. It intentionally leaves server endpoints out.</p>
+            <p><a class="link" href="DEPLOY.md#path-2-github-pages">Read the Pages path</a></p>
+          </div>
+          <div class="cell">
+            <span class="k">PHP</span>
+            <h3>Store + checkout -> any PHP host</h3>
+            <p>Upload <code>checkout.php</code>, optional endpoints, admin tools, and <code>data/</code> to shared hosting or a VPS with PHP 8+ and <code>pdo_sqlite</code>.</p>
+            <p><a class="link" href="DEPLOY.md#path-3-shared-hosting-for-a-real-store">Read the PHP host path</a></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="section">
       <div class="wrap doc-shell">
         <aside class="doc-side" aria-label="Setup sections">
