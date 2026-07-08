@@ -1,0 +1,7 @@
+*.php
+*.md
+tests/
+scripts/
+data/
+node_modules/
+.git/

@@ -379,7 +379,7 @@ persist SQLite. So the Vercel artifact deploys the **static site + demo store**
 hosting — which is the product's whole point. Never imply the PHP endpoints run
 on Vercel.
 
-- [ ] **D1. Vercel static deployment artifact.**
+- [x] **D1. Vercel static deployment artifact.**
   Files: new `vercel.json`, new `DEPLOY.md`, `.vercelignore`.
   `vercel.json` (create exactly this, then adjust only if validation fails):
 

@@ -18,7 +18,10 @@ for (const file of [
   "SETUP.md",
   "SECURITY.md",
   "CHANGELOG.md",
+  "DEPLOY.md",
   "package.json",
+  "vercel.json",
+  ".vercelignore",
   "index.html",
   "demo-store.html",
   "404.html",
@@ -464,6 +467,20 @@ assert.doesNotMatch(demoStore, /https?:\/\//, "demo store should not make extern
 assert.ok(read("index.html").includes('href="demo-store.html"'), "home hero should link to the standalone demo store");
 assert.ok(read("docs.html").includes('href="demo-store.html"'), "docs should link to the standalone demo store");
 assert.ok(read("sitemap.xml").includes("demo-store.html"), "sitemap should include the standalone demo store");
+
+const vercelConfig = JSON.parse(read("vercel.json"));
+assert.equal(vercelConfig.cleanUrls, true, "vercel.json should enable clean URLs");
+assert.equal(vercelConfig.trailingSlash, false, "vercel.json should disable trailing slashes");
+assert.ok(JSON.stringify(vercelConfig).includes("X-Content-Type-Options"), "vercel.json should set security headers");
+assert.ok(JSON.stringify(vercelConfig).includes("Cache-Control"), "vercel.json should set tinycart.js cache headers");
+const vercelIgnore = read(".vercelignore");
+for (const token of ["*.php", "tests/", "scripts/", "*.md"]) {
+  assert.ok(vercelIgnore.includes(token), `.vercelignore should include ${token}`);
+}
+const deploy = read("DEPLOY.md");
+for (const token of ["Vercel does not run PHP or persist SQLite", "Framework Preset", "GitHub Actions", "health.php", "DELETE", "ALLOWED_ORIGINS"]) {
+  assert.ok(deploy.includes(token), `DEPLOY.md should document ${token}`);
+}
 
 console.log("Static TinyCart checks passed.");
 
