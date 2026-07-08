@@ -2,6 +2,15 @@
 
 All notable TinyCart changes are documented here.
 
+## 0.3.0 - 2026-07-08
+
+- Added signed digital delivery, `download.php`, expiry/count enforcement, and paid-order gating.
+- Added server-computed shipping fees with flat rates, free-shipping thresholds, shopper-selected zones, and coupon preview totals.
+- Added customer order-status lookup by exact order id and phone with partial address display.
+- Added starter i18n string packs, RTL direction support, and a full offline `demo-store.html`.
+- Added Vercel/GitHub Pages/static deployment docs while keeping PHP checkout on shared hosting or a VPS.
+- Expanded endpoint, widget, i18n, static, link, Lighthouse, and mobile demo checkout verification.
+
 ## 0.2.0 - 2026-07-04
 
 - Added server-validated coupons with checkout revalidation.

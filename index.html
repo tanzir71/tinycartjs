@@ -45,7 +45,7 @@
           </div>
           <div class="hero-meta" aria-label="TinyCart project metadata">
             <img src="https://img.shields.io/github/stars/tanzir71/tinycartjs?style=flat-square&amp;label=GitHub%20stars&amp;color=111111" alt="GitHub stars" width="118" height="20" loading="lazy">
-            <span>v0.2.0 / MIT / PHP 8+</span>
+            <span>v0.3.0 / MIT / PHP 8+</span>
           </div>
           <div class="hero-stats" aria-label="TinyCart summary">
             <div class="stat"><strong>&lt;48KB</strong><span>small ceiling</span></div>
@@ -148,29 +148,29 @@
                 <span class="ops-pill">Export CSV</span>
               </div>
             </div>
-            <div class="ops-table" role="table" aria-label="Fake TinyCart order queue">
-              <div class="ops-row header" role="row">
+            <div class="ops-table" aria-label="Fake TinyCart order queue">
+              <div class="ops-row header">
                 <span>Order</span><span>Payment</span><span>Fulfilment</span><span>Total</span>
               </div>
-              <div class="ops-row" role="row">
+              <div class="ops-row">
                 <span class="ops-order"><strong>TC-1048</strong><span>Rina Ahmed / 3 items</span></span>
                 <span class="ops-status">cod_due</span>
                 <span>confirmed</span>
                 <span>$52.20</span>
               </div>
-              <div class="ops-row" role="row">
+              <div class="ops-row">
                 <span class="ops-order"><strong>TC-1047</strong><span>Marco Silva / 1 item</span></span>
                 <span class="ops-status">paid</span>
                 <span>packed</span>
                 <span>$24.00</span>
               </div>
-              <div class="ops-row" role="row">
+              <div class="ops-row">
                 <span class="ops-order"><strong>TC-1046</strong><span>Ada Lovelace / 2 items</span></span>
                 <span class="ops-status">paid</span>
                 <span>shipped</span>
                 <span>$86.00</span>
               </div>
-              <div class="ops-row" role="row">
+              <div class="ops-row">
                 <span class="ops-order"><strong>TC-1045</strong><span>Sam Lee / 1 item</span></span>
                 <span class="ops-status">cod_due</span>
                 <span>new</span>
@@ -270,7 +270,7 @@
           </details>
           <details>
             <summary>Can it do digital downloads?</summary>
-            <p>Not in v0.2.0. Digital file delivery is planned for Phase C, with signed links and download limits.</p>
+            <p>Yes. Digital products can use signed links through <code>download.php</code>, with expiry, payment-status checks, and download-count limits.</p>
           </details>
           <details>
             <summary>Is it secure?</summary>
@@ -504,7 +504,7 @@
       {"@type":"Question","name":"What hosting do I need?","acceptedAnswer":{"@type":"Answer","text":"Any host that can serve static files plus PHP 8 with SQLite works. Shared hosting and cPanel-style accounts are the target environment."}},
       {"@type":"Question","name":"Is COD safe?","acceptedAnswer":{"@type":"Answer","text":"COD is an operations workflow, not a fraud shield. TinyCart records COD orders as cash due so you can confirm the customer and mark cash collected only after payment arrives."}},
       {"@type":"Question","name":"How do payments work?","acceptedAnswer":{"@type":"Answer","text":"Checkout stores the order first, then optionally hands the server-recomputed total to Stripe or PayPal. COD and manual payment skip provider redirects."}},
-      {"@type":"Question","name":"Can it do digital downloads?","acceptedAnswer":{"@type":"Answer","text":"Not in v0.2.0. Digital file delivery is planned for Phase C, with signed links and download limits."}},
+      {"@type":"Question","name":"Can it do digital downloads?","acceptedAnswer":{"@type":"Answer","text":"Yes. Digital products can use signed links through download.php, with expiry, payment-status checks, and download-count limits."}},
       {"@type":"Question","name":"Is it secure?","acceptedAnswer":{"@type":"Answer","text":"The browser is display-only. PHP re-prices products, validates coupons and stock, rate-limits endpoints, and avoids wildcard CORS by default."}},
       {"@type":"Question","name":"Can I restyle it?","acceptedAnswer":{"@type":"Answer","text":"Yes. The widget is scoped under .tc-root and exposes --tc-* CSS tokens for colors, radius, and font choices."}},
       {"@type":"Question","name":"How do I update?","acceptedAnswer":{"@type":"Answer","text":"Pin release files for production, test the new version locally, then replace the JS and PHP files together when checkout behavior changes."}}

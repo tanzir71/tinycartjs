@@ -450,13 +450,13 @@ on Vercel.
   Acceptance:
   - [ ] `node --test tests/*.test.mjs` green; new cases documented in TESTPLAN.md.
 
-- [ ] **E3. Final sweep.**
+- [x] **E3. Final sweep.**
   Run Lighthouse (perf/a11y/SEO ≥ 95 on index, docs, demo-store), click every
   link on every page (write a tiny link-checker script in `scripts/`), test the
   full demo checkout on a real phone viewport, and update `CHANGELOG.md` +
   `README.md` for v0.3.0. Bump `package.json` version.
   Acceptance:
-  - [ ] All boxes above checked or noted in Section 8; CHANGELOG entry written.
+  - [x] All boxes above checked or noted in Section 8; CHANGELOG entry written.
 
 ---
 
@@ -472,4 +472,5 @@ on Vercel.
 
 ## 8. Deviation log (Codex appends here)
 
-- _(empty — add dated notes for any skipped task, raised ceiling, or invariant conflict)_
+- 2026-07-08: Vercel CLI preview/build could not be completed non-interactively in this environment because account scope selection failed and Windows cleanup raised an async assertion. Workaround used official `vercel.json` schema validation, local static serving, link checks, Lighthouse, and a browser demo checkout. No PHP-on-Vercel behavior was added.
+- 2026-07-08: External web validators that require a public deployed URL, such as link-preview and Google Rich Results testers, were not run from this local workspace. Workaround added static OG/JSON-LD assertions and local/external link checking.

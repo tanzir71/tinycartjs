@@ -160,7 +160,7 @@ class FakeDocument extends FakeElement {
   constructor(config = {}) {
     super("#document", null);
     this.ownerDocument = this;
-    this.readyState = "complete";
+    this.readyState = config.readyState || "complete";
     this.activeElement = null;
     this.head = new FakeElement("head", this);
     this.body = new FakeElement("body", this);
@@ -271,8 +271,8 @@ function createStorage(seed = {}) {
   };
 }
 
-function createHarness({ scriptConfig = {}, fetch, storage = createStorage() } = {}) {
-  const document = new FakeDocument({ scriptConfig });
+function createHarness({ scriptConfig = {}, fetch, storage = createStorage(), readyState = "complete" } = {}) {
+  const document = new FakeDocument({ scriptConfig, readyState });
   const window = {
     document,
     localStorage: storage,
@@ -381,6 +381,31 @@ test("traps focus while open and restores the opener on Escape", () => {
   document.dispatchEvent(new FakeEvent("keydown", { key: "Escape" }));
   assert.equal(modal.getAttribute("aria-hidden"), "true");
   assert.equal(document.activeElement, opener);
+});
+
+test("manual init before DOMContentLoaded is not overwritten by auto boot", async () => {
+  const calls = [];
+  const { window, document } = createHarness({ readyState: "loading" });
+
+  assert.equal(document.querySelector(".tc-root"), null);
+  window.tinycart.init({
+    cartKey: "demo-store",
+    paymentMethods: ["cod", "manual"],
+    defaultPaymentMethod: "cod",
+    onCheckout: async () => {
+      calls.push("stub");
+      return { ok: true, order_id: "DEMO-1", pay_url: null };
+    }
+  });
+  document.dispatchEvent(new FakeEvent("DOMContentLoaded"));
+  window.tinycart.add({ id: "tee-001", name: "TinyCart Tee", price: "24.00", qty: 1 });
+  document.querySelector(".tc-float").dispatchEvent(new FakeEvent("click"));
+  fillCheckoutForm(document);
+  document.querySelector(".tc-form").dispatchEvent(new FakeEvent("submit"));
+  await flushAsync();
+
+  assert.deepEqual(calls, ["stub"]);
+  assert.equal(document.querySelector(".tc-order-id").textContent, "DEMO-1");
 });
 
 test("calculates cart totals, percent coupons, and fixed coupons", async () => {

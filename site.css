@@ -36,6 +36,11 @@
   .home .cart-proof-pay,
   .home .product,
   .home .step { background: #111; }
+  .pre-block,
+  .home .code-strip {
+    background: #050505;
+    color: #f5f5f5;
+  }
   .comparison-table th,
   .home .cart-proof-box,
   .home .demo-note,
@@ -172,7 +177,14 @@ h3 { font-size: 17px; line-height: 1.25; font-weight: 750; }
   border: 1px solid var(--line);
   background: var(--soft);
 }
-.doc-side a { color: var(--muted); font: 750 13px/1.2 var(--mono); text-decoration: none; }
+.doc-side a {
+  display: flex;
+  align-items: center;
+  min-height: 26px;
+  color: var(--muted);
+  font: 750 13px/1.2 var(--mono);
+  text-decoration: none;
+}
 .doc-side a:hover { color: var(--fg); }
 .doc-content { display: grid; gap: 22px; min-width: 0; }
 .doc-content section { min-width: 0; padding: 28px; border: 1px solid var(--line); background: #fff; }
@@ -593,6 +605,18 @@ footer { border-top: 1px solid var(--line); }
   transition: background .15s ease, color .15s ease;
 }
 .home .add:hover { background: var(--ink); color: #fff; }
+@media (prefers-color-scheme: dark) {
+  .home .add {
+    background: var(--fg);
+    border-color: var(--fg);
+    color: var(--bg);
+  }
+  .home .add:hover {
+    background: #fff;
+    border-color: #fff;
+    color: #050505;
+  }
+}
 .home .product-row { display: flex; align-items: center; gap: 24px; }
 .home .demo-note {
   padding: 24px;

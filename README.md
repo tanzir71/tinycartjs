@@ -1,11 +1,19 @@
 # TinyCart
 
-[![version 0.2.0](https://img.shields.io/badge/version-0.2.0-111111)](https://github.com/tanzir71/tinycartjs/releases)
+[![version 0.3.0](https://img.shields.io/badge/version-0.3.0-111111)](https://github.com/tanzir71/tinycartjs/releases)
 [![zero dependencies](https://img.shields.io/badge/dependencies-zero-1A73E8)](package.json)
 
 TinyCart turns a static website into a small storefront with one script include and a few `data-tc-*` attributes, then hands validated orders to PHP/SQLite for COD, online payment, inventory, coupons, and ops admin.
 
 Repository: https://github.com/tanzir71/tinycartjs
+
+## What's New in 0.3.0
+
+- Signed digital delivery through `download.php`, with expiry, payment-status checks, and download-count limits.
+- Server-side shipping totals for flat fees, free-above thresholds, and shopper-selected zones.
+- Customer order lookup through `order-status.php`, requiring exact order id plus phone and showing only partial address context.
+- Starter translation JSON for Bengali, Hindi, Urdu, Arabic, Spanish, and French, with `dir: "rtl"` support.
+- Offline demo store, static deployment docs, Vercel/GitHub Pages guardrails, and a local link checker.
 
 ## Quick Start
 
@@ -56,7 +64,7 @@ For production, pin a release tag instead of loading from a moving branch:
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/gh/tanzir71/tinycartjs@v0.2.0/tinycart.js"
+  src="https://cdn.jsdelivr.net/gh/tanzir71/tinycartjs@v0.3.0/tinycart.js"
   data-tc-config='{"cartKey":"store-1","currency":"USD","apiCheckout":"/checkout.php","paymentMethods":["online","cod"],"defaultPaymentMethod":"cod"}'>
 </script>
 ```
@@ -64,7 +72,7 @@ For production, pin a release tag instead of loading from a moving branch:
 If you want a smaller asset, run `npm run build:min` to produce `tinycart.min.js`, then serve the pinned CDN path:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/tanzir71/tinycartjs@v0.2.0/tinycart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/tanzir71/tinycartjs@v0.3.0/tinycart.min.js"></script>
 ```
 
 The minified file is optional; `tinycart.js` remains the canonical readable build.

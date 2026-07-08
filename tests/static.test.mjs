@@ -53,6 +53,7 @@ for (const file of [
   "examples/astro-eleventy.md",
   "examples/react-wrapper.jsx",
   "scripts/minify.mjs",
+  "scripts/link-checker.mjs",
   ".github/workflows/ci.yml",
   ".github/workflows/pages.yml",
   ".nojekyll"
@@ -246,15 +247,17 @@ for (const token of ["download.php", "signed digital-delivery links", "DOWNLOAD_
 }
 
 const changelog = read("CHANGELOG.md");
-assert.ok(changelog.includes("## 0.2.0 - 2026-07-04"), "CHANGELOG should include the current release entry");
+assert.ok(changelog.includes("## 0.3.0 - 2026-07-08"), "CHANGELOG should include the current release entry");
 
 const pkg = JSON.parse(read("package.json"));
 assert.equal(pkg.name, "tinycartjs");
-assert.equal(pkg.version, "0.2.0");
+assert.equal(pkg.version, "0.3.0");
 assert.deepEqual(pkg.dependencies ?? {}, {}, "package.json should not add runtime dependencies");
 assert.deepEqual(pkg.devDependencies ?? {}, {}, "package.json should not add dev dependencies");
 assert.ok(pkg.files.includes("tinycart.js"), "package.json should publish tinycart.js");
 assert.ok(pkg.files.includes("download.php"), "package.json should publish download.php");
+assert.ok(pkg.files.includes("order-status.php"), "package.json should publish order-status.php");
+assert.ok(pkg.files.includes("scripts/link-checker.mjs"), "package.json should publish the link checker");
 assert.equal(pkg.scripts["build:min"], "node scripts/minify.mjs", "package.json should expose the no-dependency minify helper");
 
 const plainExample = read("examples/plain-html.html");
@@ -374,7 +377,7 @@ for (const token of ['data-tc-img="product-tee.svg"', 'data-tc-img="product-mug.
   assert.ok(index.includes(token), `landing demo should include ${token}`);
 }
 assert.ok(index.includes("Cash on delivery") && index.includes("SAVE10 applied"), "hero cart replica should show COD and an applied coupon");
-assert.ok(index.includes("v0.2.0") && index.includes("MIT") && index.includes("PHP 8+"), "hero should include release/license/runtime metadata");
+assert.ok(index.includes("v0.3.0") && index.includes("MIT") && index.includes("PHP 8+"), "hero should include release/license/runtime metadata");
 assert.ok(index.includes("img.shields.io/github/stars/tanzir71/tinycartjs") && index.includes('loading="lazy"'), "hero should include a lazy GitHub stars badge");
 for (const token of ["ops-showcase", "COD collection", "CSV export", "Order queue", "cod_due", "paid", "shipped"]) {
   assert.ok(index.includes(token), `landing should show the admin ops showcase detail: ${token}`);

@@ -1,6 +1,6 @@
 {
   "name": "tinycartjs",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A tiny dependency-free cart widget and shared-hosting PHP checkout endpoints.",
   "license": "MIT",
   "type": "module",
@@ -36,11 +36,13 @@
     "SECURITY.md",
     "CHANGELOG.md",
     "examples",
-    "scripts/minify.mjs"
+    "scripts/minify.mjs",
+    "scripts/link-checker.mjs"
   ],
   "scripts": {
     "test": "node --test tests/*.test.mjs && node tests/static.test.mjs",
-    "lint:php": "php -l checkout.php && php -l coupon.php && php -l payment.php && php -l catalog.php && php -l admin.php && php -l collect.php",
+    "lint:php": "php -l checkout.php && php -l coupon.php && php -l payment.php && php -l catalog.php && php -l admin.php && php -l collect.php && php -l download.php && php -l order-status.php",
+    "check:links": "node scripts/link-checker.mjs",
     "build:min": "node scripts/minify.mjs"
   }
 }
