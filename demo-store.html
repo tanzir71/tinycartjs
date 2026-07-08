@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TinyCart Demo Store</title>
+  <meta name="description" content="A complete offline TinyCart demo storefront with six products and a stubbed checkout.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="stylesheet" href="site.css">
+  <style>
+    body.demo-store { background: var(--bg); }
+    .store-shell { min-height: 100vh; }
+    .store-hero { padding: clamp(28px, 6vw, 64px) 0 28px; border-top: 0; }
+    .store-top { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); gap: 24px; align-items: end; }
+    .store-top h1 { max-width: 780px; margin: 0; font-size: clamp(44px, 8vw, 92px); line-height: .9; letter-spacing: 0; }
+    .store-top p { max-width: 620px; color: var(--muted); font-size: 18px; line-height: 1.55; }
+    .demo-status { border: 1px solid var(--line); padding: 14px; background: var(--soft); font-size: 14px; color: var(--muted); }
+    .store-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+    .store-filter { border: 1px solid var(--line); background: var(--bg); color: var(--fg); min-height: 38px; padding: 0 12px; font-weight: 800; cursor: pointer; }
+    .store-filter[aria-pressed="true"] { border-color: var(--fg); background: var(--fg); color: var(--bg); }
+    .product-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; padding-bottom: 54px; }
+    .product-card { display: grid; gap: 12px; border: 1px solid var(--line); background: var(--bg); padding: 14px; min-width: 0; }
+    .product-art { display: grid; place-items: center; min-height: 170px; background: var(--soft); border: 1px solid var(--line); }
+    .product-art svg { width: min(190px, 82%); height: auto; display: block; }
+    .product-meta { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+    .product-meta h2 { margin: 0; font-size: 19px; line-height: 1.15; }
+    .price { font: 800 15px/1 var(--mono); white-space: nowrap; }
+    .product-card p { margin: 0; min-height: 46px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .product-card button[data-tc-id] { min-height: 42px; border: 1px solid var(--fg); background: var(--fg); color: var(--bg); font-weight: 900; cursor: pointer; }
+    .template-note { border: 1px solid var(--line); background: var(--soft); padding: 16px; margin-bottom: 32px; color: var(--muted); }
+    .template-note code { color: var(--fg); }
+    @media (max-width: 860px) {
+      .store-top, .product-grid { grid-template-columns: 1fr 1fr; }
+      .store-top { align-items: start; }
+    }
+    @media (max-width: 620px) {
+      .store-top, .product-grid { grid-template-columns: 1fr; }
+      .store-top h1 { font-size: 44px; }
+    }
+  </style>
+</head>
+<body class="demo-store">
+  <header>
+    <div class="wrap nav">
+      <a class="brand" href="index.html" aria-label="TinyCart home"><span class="brand-mark">TC</span><span>TinyCart</span></a>
+      <nav aria-label="Main navigation">
+        <a href="docs.html">Docs</a>
+        <a href="SETUP.md">Setup</a>
+        <a href="index.html#demo">Inline demo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="store-shell">
+    <section class="store-hero">
+      <div class="wrap store-top">
+        <div>
+          <p class="eyebrow">DEMO STORE</p>
+          <h1>Static shop, live cart.</h1>
+          <p>This page works from a direct <code>file://</code> open. The products are plain HTML, the art is inline SVG, and checkout is handled by a local stub instead of PHP.</p>
+          <div class="store-controls" aria-label="Product categories">
+            <button class="store-filter" type="button" data-filter="all" aria-pressed="true">All</button>
+            <button class="store-filter" type="button" data-filter="apparel" aria-pressed="false">Apparel</button>
+            <button class="store-filter" type="button" data-filter="home" aria-pressed="false">Home</button>
+            <button class="store-filter" type="button" data-filter="digital" aria-pressed="false">Digital</button>
+          </div>
+        </div>
+        <aside class="demo-status" data-demo-status>
+          Add products, open the floating cart, and place a demo COD order. No network request will be made.
+        </aside>
+      </div>
+    </section>
+
+    <section class="wrap" aria-label="Demo products">
+      <div class="template-note">
+        Copy this file as a starter template: replace each product card, keep the <code>data-tc-*</code> attributes, and swap the checkout stub for <code>checkout.php</code> when you deploy.
+      </div>
+
+      <div class="product-grid">
+        <!-- Product card pattern: normal HTML for display, data-tc-* for TinyCart. -->
+        <article class="product-card" data-category="apparel">
+          <div class="product-art" aria-hidden="true">
+            <svg viewBox="0 0 220 160" role="img" aria-label="">
+              <rect x="22" y="24" width="176" height="112" fill="#fff" stroke="#111" stroke-width="4"/>
+              <path d="M70 24c6 22 74 22 80 0" fill="none" stroke="#111" stroke-width="4"/>
+              <path d="M66 68h88M66 92h58" stroke="#1a73e8" stroke-width="8"/>
+            </svg>
+          </div>
+          <div class="product-meta"><h2>Market tee</h2><span class="price">$24.00</span></div>
+          <p>Soft cotton tee with a tiny receipt-print mark.</p>
+          <button data-tc-id="demo-tee" data-tc-name="Market tee" data-tc-price="24.00" data-tc-options='{"size":"M"}'>Add tee</button>
+        </article>
+
+        <article class="product-card" data-category="apparel">
+          <div class="product-art" aria-hidden="true">
+            <svg viewBox="0 0 220 160" role="img" aria-label="">
+              <path d="M56 136h108l-10-84H66z" fill="#fff" stroke="#111" stroke-width="4"/>
+              <path d="M82 52c0-28 56-28 56 0" fill="none" stroke="#111" stroke-width="4"/>
+              <path d="M84 92h52" stroke="#1a73e8" stroke-width="8"/>
+            </svg>
+          </div>
+          <div class="product-meta"><h2>Canvas tote</h2><span class="price">$32.00</span></div>
+          <p>A flat-pack market bag for small shop runs.</p>
+          <button data-tc-id="demo-tote" data-tc-name="Canvas tote" data-tc-price="32.00" data-tc-options='{"color":"Natural"}'>Add tote</button>
+        </article>
+
+        <article class="product-card" data-category="home">
+          <div class="product-art" aria-hidden="true">
+            <svg viewBox="0 0 220 160" role="img" aria-label="">
+              <rect x="68" y="46" width="70" height="78" rx="8" fill="#fff" stroke="#111" stroke-width="4"/>
+              <path d="M138 64h18c18 0 18 42 0 42h-18" fill="none" stroke="#111" stroke-width="4"/>
+              <path d="M82 78h42M82 96h30" stroke="#1a73e8" stroke-width="7"/>
+            </svg>
+          </div>
+          <div class="product-meta"><h2>Checkout mug</h2><span class="price">$18.00</span></div>
+          <p>Heavy ceramic mug for packing-table coffee.</p>
+          <button data-tc-id="demo-mug" data-tc-name="Checkout mug" data-tc-price="18.00" data-tc-options='{"finish":"Gloss"}'>Add mug</button>
+        </article>
+
+        <article class="product-card" data-category="home">
+          <div class="product-art" aria-hidden="true">
+            <svg viewBox="0 0 220 160" role="img" aria-label="">
+              <rect x="58" y="34" width="104" height="98" rx="12" fill="#fff" stroke="#111" stroke-width="4"/>
+              <path d="M58 58h104" stroke="#111" stroke-width="4"/>
+              <circle cx="88" cy="96" r="16" fill="none" stroke="#1a73e8" stroke-width="7"/>
+              <path d="M116 90h26M116 106h18" stroke="#111" stroke-width="4"/>
+            </svg>
+          </div>
+          <div class="product-meta"><h2>Coffee tin</h2><span class="price">$26.00</span></div>
+          <p>Roasted beans packed like a small-batch preorder.</p>
+          <button data-tc-id="demo-coffee" data-tc-name="Coffee tin" data-tc-price="26.00" data-tc-options='{"size":"250g"}'>Add coffee</button>
+        </article>
+
+        <article class="product-card" data-category="digital">
+          <div class="product-art" aria-hidden="true">
+            <svg viewBox="0 0 220 160" role="img" aria-label="">
+              <path d="M58 24h86l24 24v88H58z" fill="#fff" stroke="#111" stroke-width="4"/>
+              <path d="M144 24v26h24M78 72h68M78 94h68M78 116h42" stroke="#111" stroke-width="4"/>
+              <path d="M78 50h34" stroke="#1a73e8" stroke-width="8"/>
+            </svg>
+          </div>
+          <div class="product-meta"><h2>Launch guide PDF</h2><span class="price">$12.00</span></div>
+          <p>A digital checklist for replacing hosted checkout buttons.</p>
+          <button data-tc-id="demo-guide" data-tc-name="Launch guide PDF" data-tc-price="12.00" data-tc-options='{"format":"PDF"}'>Add guide</button>
+        </article>
+
+        <article class="product-card" data-category="home">
+          <div class="product-art" aria-hidden="true">
+            <svg viewBox="0 0 220 160" role="img" aria-label="">
+              <rect x="46" y="46" width="128" height="76" fill="#fff" stroke="#111" stroke-width="4"/>
+              <path d="M110 46v76M46 84h128" stroke="#111" stroke-width="4"/>
+              <path d="M78 46c-16-30 32-30 32 0M110 46c0-30 48-30 32 0" fill="none" stroke="#1a73e8" stroke-width="6"/>
+            </svg>
+          </div>
+          <div class="product-meta"><h2>Gift wrap</h2><span class="price">$7.00</span></div>
+          <p>Simple add-on service for local delivery orders.</p>
+          <button data-tc-id="demo-wrap" data-tc-name="Gift wrap" data-tc-price="7.00" data-tc-options='{"paper":"Blue"}'>Add wrap</button>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script src="tinycart.js"></script>
+  <script>
+    // Demo-only checkout: replace this init block with apiCheckout when deploying.
+    (function () {
+      const status = document.querySelector("[data-demo-status]");
+      const filters = Array.from(document.querySelectorAll("[data-filter]"));
+      const cards = Array.from(document.querySelectorAll("[data-category]"));
+
+      filters.forEach((button) => {
+        button.addEventListener("click", () => {
+          const value = button.getAttribute("data-filter");
+          filters.forEach((item) => item.setAttribute("aria-pressed", item === button ? "true" : "false"));
+          cards.forEach((card) => {
+            card.hidden = value !== "all" && card.getAttribute("data-category") !== value;
+          });
+        });
+      });
+
+      window.tinycart.init({
+        cartKey: "demo-store",
+        currency: "USD",
+        locale: "en-US",
+        paymentMethods: ["cod", "manual"],
+        defaultPaymentMethod: "cod",
+        accent: "#1a73e8",
+        coupons: { SAVE10: { type: "percent", value: 10 } },
+        shipping: {
+          zones: [
+            { id: "local", label: "Local delivery", amountCents: 500 },
+            { id: "pickup", label: "Pickup", amountCents: 0 }
+          ]
+        },
+        onCheckout: async (payload) => {
+          status.textContent = "Demo checkout received. No server request was made.";
+          await new Promise((resolve) => setTimeout(resolve, 450));
+          const orderId = "DEMO-" + String(Date.now()).slice(-6);
+          status.textContent = "Demo order " + orderId + " created from the local checkout stub.";
+          return {
+            ok: true,
+            order_id: orderId,
+            pay_url: null,
+            subtotal_cents: payload.cart.totals.subtotalCents,
+            discount_cents: payload.cart.totals.discountCents || 0,
+            shipping_cents: payload.cart.totals.shippingCents || 0,
+            total_cents: payload.cart.totals.totalCents,
+            coupon_code: payload.cart.coupon && payload.cart.coupon.code,
+            payment_method: payload.paymentMethod || "cod",
+            payment_status: payload.paymentMethod === "manual" ? "pending" : "cod_due"
+          };
+        }
+      });
+    }());
+  </script>
+</body>
+</html>

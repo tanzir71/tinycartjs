@@ -361,7 +361,7 @@ Byte budget note: before B tasks, do B0.
   - [ ] Each JSON covers every key in STRINGS (script-check key parity).
   - [ ] `dir:"rtl"` config mirrors the dialog correctly.
 
-- [ ] **C5. One-file demo store.**
+- [x] **C5. One-file demo store.**
   Files: new `demo-store.html`.
   A complete fake storefront (6 products with inline-SVG imagery, categories,
   the widget fully wired to the `onCheckout` stub) that doubles as (a) the

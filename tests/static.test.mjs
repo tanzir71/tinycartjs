@@ -20,6 +20,7 @@ for (const file of [
   "CHANGELOG.md",
   "package.json",
   "index.html",
+  "demo-store.html",
   "404.html",
   "robots.txt",
   "sitemap.xml",
@@ -453,6 +454,16 @@ assert.match(js, /\.tc-dialog\{[^}]*padding:0/, "cart modal should neutralize ho
 assert.ok(js.includes(".tc-body{overflow:auto;scrollbar-color:var(--f) var(--s);"), "cart modal should style its scrollbar");
 assert.ok(js.includes(".tc-form{display:grid;gap:8px;margin-top:8px;padding-top:10px"), "checkout form spacing should stay compact");
 assert.ok(js.length <= 45_000, "cart widget should stay below the size ceiling after dark mode");
+
+const demoStore = read("demo-store.html");
+assert.equal((demoStore.match(/data-tc-id=/g) || []).length, 6, "demo store should include six TinyCart product buttons");
+assert.ok((demoStore.match(/<svg viewBox=/g) || []).length >= 6, "demo store should use inline SVG product imagery");
+assert.ok(demoStore.includes('src="tinycart.js"'), "demo store should load the local widget");
+assert.ok(demoStore.includes("onCheckout"), "demo store should use a stubbed checkout handler");
+assert.doesNotMatch(demoStore, /https?:\/\//, "demo store should not make external requests");
+assert.ok(read("index.html").includes('href="demo-store.html"'), "home hero should link to the standalone demo store");
+assert.ok(read("docs.html").includes('href="demo-store.html"'), "docs should link to the standalone demo store");
+assert.ok(read("sitemap.xml").includes("demo-store.html"), "sitemap should include the standalone demo store");
 
 console.log("Static TinyCart checks passed.");
 
