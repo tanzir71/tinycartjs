@@ -36,7 +36,7 @@ If your host allows directories outside `public_html`, place `data/` outside web
 
 ## Upload
 
-1. Upload `tinycart.js`, `checkout.php`, `coupon.php`, `payment.php`, `catalog.php`, `admin.php`, `collect.php`, `README.md`, `SETUP.md`, `SECURITY.md`, and `index.html` to `public_html/tinycart/` or your storefront directory.
+1. Upload `tinycart.js`, `checkout.php`, `coupon.php`, `payment.php`, `catalog.php`, `admin.php`, `collect.php`, `download.php`, `order-status.php`, `README.md`, `SETUP.md`, `SECURITY.md`, and `index.html` to `public_html/tinycart/` or your storefront directory.
 2. Edit `checkout.php`:
    - Set `ALLOWED_ORIGINS` to your real storefront origins.
    - Add one or more long random `API_KEYS` if you want the `X-API-KEY` check.
@@ -68,6 +68,9 @@ If your host allows directories outside `public_html`, place `data/` outside web
    - Set `COLLECT_ALLOWED_ORIGINS` to the storefront origins that may send beacons.
    - Add long random `COLLECT_API_KEYS` if you configure `apiKey` in TinyCart.
    - Tune `COLLECT_RATE_MAX_REQUESTS` and `COLLECT_RATE_WINDOW_SECONDS` for your traffic.
+9. Edit `order-status.php` if customers should self-check orders:
+   - Set `ORDER_STATUS_ALLOWED_ORIGINS` to your storefront origins.
+   - Keep `ORDER_STATUS_DB_PATH` pointed at the same SQLite file as `checkout.php`.
 
 Before going live, run one test order with each enabled payment method, then open `admin.php` and confirm the order row, line items, status badges, inventory decrement, coupon handling, and webhook health panel all reflect the expected state.
 
@@ -110,12 +113,13 @@ Keep these constants aligned across files:
 | `admin.php` | `ADMIN_ALLOWED_ORIGINS`, `ADMIN_API_KEYS`, `ADMIN_PASSWORD_HASH`, `ADMIN_PRODUCT_CATALOG`, `ADMIN_COUPONS` | Admin catalog/coupon lists should mirror checkout so operators see the right stock and toggles. |
 | `collect.php` | `COLLECT_ALLOWED_ORIGINS`, `COLLECT_API_KEYS`, rate limits | Analytics should not receive secrets or unnecessary customer PII. |
 | `download.php` | `DOWNLOAD_FILES`, `DOWNLOAD_SECRET`, `DOWNLOAD_MAX_COUNT`, `DOWNLOAD_ALLOW_COD_DUE` | Optional digital delivery for paid orders. Keep file paths private or guarded. |
+| `order-status.php` | `ORDER_STATUS_ALLOWED_ORIGINS`, `ORDER_STATUS_DB_PATH`, rate limits | Customer lookup by exact order id and phone. Shows status, items, totals, and only partial address context. |
 
 Generate secrets with your password manager or a local command such as `openssl rand -hex 32`. Do not reuse `HMAC_SECRET`, API keys, webhook secrets, or admin passwords.
 
 ## SQLite
 
-`checkout.php` creates `data/orders.sqlite` and the required order tables automatically with PDO prepared statements. Manual and online orders start with `payment_status` set to `pending`; COD orders use `payment_status` `cod_due` and skip payment provider handoff. When payment providers are enabled, online checkout responses include `pay_url` for the hosted payment page. `payment.php` updates the same order row to `paid` after a verified Stripe webhook or captured PayPal return. `catalog.php` serves a read-only cacheable catalog for optional client hydration. `admin.php` reads and updates orders, stock, coupon overrides, and webhook retry state after auth. `coupon.php` stores rate-limit buckets in `data/coupon_rate_limits/`. `collect.php` creates `data/collect.sqlite` with `collect_events`, `failed_payloads`, and `rate_limits`.
+`checkout.php` creates `data/orders.sqlite` and the required order tables automatically with PDO prepared statements. Manual and online orders start with `payment_status` set to `pending`; COD orders use `payment_status` `cod_due` and skip payment provider handoff. When payment providers are enabled, online checkout responses include `pay_url` for the hosted payment page. `payment.php` updates the same order row to `paid` after a verified Stripe webhook or captured PayPal return. `catalog.php` serves a read-only cacheable catalog for optional client hydration. `admin.php` reads and updates orders, stock, coupon overrides, and webhook retry state after auth. `coupon.php` stores rate-limit buckets in `data/coupon_rate_limits/`. `order-status.php` stores lookup rate-limit buckets in `data/order_status_rate_limits/`. `collect.php` creates `data/collect.sqlite` with `collect_events`, `failed_payloads`, and `rate_limits`.
 
 The checkout database also includes an `inventory` table seeded from `PRODUCT_CATALOG` on first run. Existing rows are not overwritten automatically, so restock through `admin.php` or SQLite. Coupon activation overrides live in `coupon_overrides`; the configured coupon rules still live in PHP constants. Failed webhook attempts are recorded in `webhook_deliveries` and can be queued for immediate retry in the dashboard.
 
@@ -208,6 +212,18 @@ const DEFAULT_PAYMENT_METHOD = 'cod';
 ```
 
 With a single configured payment method, the widget does not render radio controls. Checkout still stores the method and status.
+
+## Customer Order Status
+
+`order-status.php` is a tiny customer-facing page. It asks for the order id and phone number from checkout, then runs one prepared query that requires both values to match the same order row. Wrong id/phone pairs get the same generic "No matching order found" page, so the lookup should not reveal whether an order id exists.
+
+The page shows the status timeline, line items, subtotal, discount, shipping, and total. It does not show the full delivery address; only the first address line or first line plus city is rendered for context. Keep `ORDER_STATUS_ALLOWED_ORIGINS` exact, and do not add customer-name or email search fields.
+
+Link it from your order confirmation or footer:
+
+```html
+<a href="/tinycart/order-status.php">Check order status</a>
+```
 
 ## Ops Dashboard Flow
 

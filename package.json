@@ -30,6 +30,7 @@
     "admin.php",
     "collect.php",
     "download.php",
+    "order-status.php",
     "README.md",
     "SETUP.md",
     "SECURITY.md",

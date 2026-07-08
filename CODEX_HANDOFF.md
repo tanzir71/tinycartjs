@@ -341,7 +341,7 @@ Byte budget note: before B tasks, do B0.
   - [ ] Totals: subtotal − discount + shipping, computed server-side, to the cent.
   - [ ] Zone tampering in payload can't produce a fee lower than the configured zone floor (server re-validates zone against the config list).
 
-- [ ] **C3. Customer order-status lookup (trust feature every hosted platform has).**
+- [x] **C3. Customer order-status lookup (trust feature every hosted platform has).**
   Files: new `order-status.php`, `SETUP.md`.
   A tiny server-rendered page: enter order ID + phone (both must match) → shows
   status timeline (received → paid/cod_due → shipped), items, and total. Escaped

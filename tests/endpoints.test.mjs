@@ -11,7 +11,7 @@ const hasPdoSqlite = spawnSync("php", ["-r", "echo extension_loaded('pdo_sqlite'
 
 async function withServer(run) {
   const fixture = mkdtempSync(join(tmpdir(), "tinycart-endpoints-"));
-  for (const file of ["checkout.php", "collect.php", "coupon.php", "catalog.php", "download.php"]) {
+  for (const file of ["checkout.php", "collect.php", "coupon.php", "catalog.php", "download.php", "order-status.php"]) {
     assert.ok(existsSync(join(root, file)), `${file} should exist`);
     copyFileSync(join(root, file), join(fixture, file));
   }
@@ -656,6 +656,150 @@ echo json_encode([
   assert.match(result.retry_sql, /webhook_deliveries/i);
 });
 
+test("order status lookup requires both order id and phone", () => {
+  const result = runOrderStatusSnippet(`
+class FakeStatement {
+    public array $params = [];
+    public function __construct(private string $kind, private FakePdo $pdo) {}
+    public function execute(array $params = []): void {
+        $this->params = $params;
+        $this->pdo->calls[] = ['kind' => $this->kind, 'params' => $params];
+    }
+    public function fetch(): mixed {
+        if ($this->kind !== 'order') {
+            return false;
+        }
+        if (($this->params[':id'] ?? '') !== 'T123' || ($this->params[':phone'] ?? '') !== '+15551234567') {
+            return false;
+        }
+        return [
+            'id' => 'T123',
+            'created_at' => '2026-07-04T00:00:00+00:00',
+            'currency' => 'USD',
+            'customer_address' => '1 Byte Lane, Dhaka',
+            'subtotal_cents' => 2400,
+            'discount_cents' => 240,
+            'shipping_cents' => 500,
+            'total_cents' => 2660,
+            'coupon_code' => 'SAVE10',
+            'payment_method' => 'cod',
+            'payment_status' => 'cod_due',
+            'fulfillment_status' => 'new',
+        ];
+    }
+    public function fetchAll(): array {
+        return [[
+            'product_id' => 'tee-001',
+            'product_name' => 'TinyCart Tee',
+            'price_cents' => 2400,
+            'qty' => 1,
+            'line_total_cents' => 2400,
+        ]];
+    }
+}
+class FakePdo {
+    public array $calls = [];
+    public string $orderSql = '';
+    public function prepare(string $sql): FakeStatement {
+        if (str_contains($sql, 'FROM orders')) {
+            $this->orderSql = $sql;
+            return new FakeStatement('order', $this);
+        }
+        return new FakeStatement('items', $this);
+    }
+}
+$pdo = new FakePdo();
+$hit = lookupOrderStatus($pdo, 'T123', '+15551234567');
+$wrongPhone = lookupOrderStatus($pdo, 'T123', '+0000000000');
+$wrongId = lookupOrderStatus($pdo, 'T404', '+15551234567');
+echo json_encode([
+    'hit_total' => $hit['total_cents'] ?? null,
+    'hit_items' => count($hit['items'] ?? []),
+    'wrong_phone' => $wrongPhone,
+    'wrong_id' => $wrongId,
+    'order_sql' => $pdo->orderSql,
+    'calls' => $pdo->calls,
+], JSON_UNESCAPED_SLASHES);
+`);
+
+  assert.equal(result.hit_total, 2660);
+  assert.equal(result.hit_items, 1);
+  assert.equal(result.wrong_phone, null);
+  assert.equal(result.wrong_id, null);
+  assert.match(result.order_sql, /WHERE id = :id\s+AND customer_phone = :phone/i);
+  assert.equal(result.calls[2].params[":id"], "T123");
+  assert.equal(result.calls[2].params[":phone"], "+0000000000");
+  assert.equal(result.calls[3].params[":id"], "T404");
+});
+
+test("order status page escapes output and shows only partial address", () => {
+  const result = runOrderStatusSnippet(`
+$order = [
+    'id' => 'T<script>alert(1)</script>',
+    'created_at' => '2026-07-04T00:00:00+00:00',
+    'currency' => 'USD',
+    'customer_address' => "1 <Main> St\\nApartment 9, Secret Floor, Dhaka",
+    'subtotal_cents' => 2400,
+    'discount_cents' => 240,
+    'shipping_cents' => 500,
+    'total_cents' => 2660,
+    'coupon_code' => 'SAVE10',
+    'payment_method' => 'cod',
+    'payment_status' => 'cod_due',
+    'fulfillment_status' => 'shipped',
+    'items' => [[
+        'product_id' => 'tee-001',
+        'product_name' => '<img src=x onerror=alert(1)>',
+        'price_cents' => 2400,
+        'qty' => 1,
+        'line_total_cents' => 2400,
+    ]],
+];
+$html = renderOrderStatusPage($order, true);
+$miss = renderOrderStatusPage(null, true);
+echo json_encode(['html' => $html, 'miss' => $miss], JSON_UNESCAPED_SLASHES);
+`);
+
+  assert.match(result.html, /Order status/);
+  assert.match(result.html, /Received/);
+  assert.match(result.html, /Cash due/);
+  assert.match(result.html, /Shipped/);
+  assert.match(result.html, /26\.60 USD/);
+  assert.match(result.html, /1 &lt;Main&gt; St/);
+  assert.doesNotMatch(result.html, /Apartment 9/);
+  assert.match(result.html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.doesNotMatch(result.html, /<img src=x/);
+  assert.doesNotMatch(result.html, /<script>alert/);
+  assert.match(result.miss, /No matching order found/);
+  assert.doesNotMatch(result.miss, /T&lt;script/);
+});
+
+test("order status rejects foreign origins and rate-limits lookups", () => {
+  const result = runOrderStatusSnippet(`
+$originStatus = null;
+try {
+    $_SERVER['HTTP_ORIGIN'] = 'https://evil.example';
+    statusHandleOrigin();
+} catch (StatusError $error) {
+    $originStatus = $error->statusCode;
+}
+unset($_SERVER['HTTP_ORIGIN']);
+$_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+$rateStatus = null;
+try {
+    statusRateLimit(statusClientIp());
+    statusRateLimit(statusClientIp());
+    statusRateLimit(statusClientIp());
+} catch (StatusError $error) {
+    $rateStatus = $error->statusCode;
+}
+echo json_encode(['origin_status' => $originStatus, 'rate_status' => $rateStatus], JSON_UNESCAPED_SLASHES);
+`, [["const ORDER_STATUS_RATE_LIMIT_MAX_REQUESTS = 20;", "const ORDER_STATUS_RATE_LIMIT_MAX_REQUESTS = 2;"]]);
+
+  assert.equal(result.origin_status, 403);
+  assert.equal(result.rate_status, 429);
+});
+
 test("admin CSV export escapes formula-like cells and includes filtered order fields", () => {
   const result = runAdminSnippet(`
 $csv = renderAdminCsv([
@@ -971,6 +1115,30 @@ function runAdminSnippet(snippet, replacements = []) {
     writeFileSync(join(fixture, "admin_lib.php"), source);
     writeFileSync(join(fixture, "run.php"), `<?php
 require __DIR__ . '/admin_lib.php';
+${snippet}
+`);
+
+    const result = spawnSync("php", ["run.php"], {
+      cwd: fixture,
+      encoding: "utf8"
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    return JSON.parse(result.stdout);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+}
+
+function runOrderStatusSnippet(snippet, replacements = []) {
+  const fixture = mkdtempSync(join(tmpdir(), "tinycart-order-status-lib-"));
+  try {
+    let source = readFileSync(join(root, "order-status.php"), "utf8").replace(/\r?\nstatusMain\(\);\r?\n/, "\n");
+    for (const [from, to] of replacements) {
+      source = source.replace(from, to);
+    }
+    writeFileSync(join(fixture, "order_status_lib.php"), source);
+    writeFileSync(join(fixture, "run.php"), `<?php
+require __DIR__ . '/order_status_lib.php';
 ${snippet}
 `);
 

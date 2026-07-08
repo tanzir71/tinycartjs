@@ -9,7 +9,7 @@ Repository: https://github.com/tanzir71/tinycartjs
 
 ## Quick Start
 
-1. Upload `tinycart.js`, `checkout.php`, optional `coupon.php`, optional `payment.php`, optional `catalog.php`, optional `admin.php`, optional `collect.php`, and optional `download.php` to your site.
+1. Upload `tinycart.js`, `checkout.php`, optional `coupon.php`, optional `payment.php`, optional `catalog.php`, optional `admin.php`, optional `collect.php`, optional `download.php`, and optional `order-status.php` to your site.
 2. Configure `checkout.php`: set `ALLOWED_ORIGINS`, optional `API_KEYS`, `HMAC_SECRET`, `PRODUCT_CATALOG`, `COUPONS`, and optional payment methods such as COD.
 3. Configure `coupon.php` if you use server-side coupon validation: set `COUPON_ALLOWED_ORIGINS`, optional `COUPON_API_KEYS`, and `COUPONS`.
 4. Configure `admin.php` if you use the ops dashboard for order status, COD collection, stock, coupon overrides, CSV export, or webhook retry.
@@ -46,6 +46,7 @@ TinyCart is split into a small client widget and plain PHP endpoints:
 - `admin.php` is the server-rendered ops dashboard for order status, COD collection, admin notes, stock, coupon overrides, CSV export, and webhook retry.
 - `collect.php` accepts optional cart analytics that should remain operational and non-sensitive.
 - `download.php` verifies signed digital-delivery links, checks payment status, enforces expiry/download limits, and streams configured files.
+- `order-status.php` lets customers look up an order by exact order id + phone, then shows statuses, items, totals, and only partial address context.
 
 The client never has final authority over price, total, stock, coupon validity, payment status, or fulfilment status. Treat anything in HTML or JSON from the browser as display data until the PHP endpoint validates it.
 
